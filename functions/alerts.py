@@ -14,9 +14,7 @@ ALERTS_CONFIG_FILE= os.path.join(ALERTS_DIR, "alert_config.json")
 
 def load_alert_config():
     if not os.path.exists(ALERTS_CONFIG_FILE):
-        # Cria arquivo com os valores padrão se não existir
         save_alert_config(telegram_alerts_enabled=True, teams_alerts_enabled=False)
-    
     try:
         with open(ALERTS_CONFIG_FILE, 'r') as f:
             config = json.load(f)
@@ -55,7 +53,7 @@ def load_alerts_state(type):
         return {}
     except json.JSONDecodeError:
         print(f"Erro ao decodificar o arquivo JSON {ALERTS_FILE}. Criando um novo arquivo.")
-        save_alerts_state(type, {})  # Corrigido: agora passa o `type` e o `state`
+        save_alerts_state(type, {})
         return {}
 
 def save_alerts_state(type, state):

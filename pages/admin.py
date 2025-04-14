@@ -9,7 +9,7 @@ load_dotenv(override=True)
 
 FLASK_PREFIX = os.getenv('PREFIX', '')
 ADMIN_DIR = os.getenv('ADMIN_DIR', '')
-VERSAO = os.getenv('VERSAO', '-dev')
+VERSAO = os.getenv('VERSAO', 'local')
 
 bp_admin = Blueprint('admin', __name__)
 

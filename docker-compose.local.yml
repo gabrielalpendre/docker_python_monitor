@@ -16,6 +16,7 @@ services:
       - SERVER_HOSTNAME=${SERVER_HOSTNAME}
       - SERVER_IP=${SERVER_IP}
       - PREFIX=${PREFIX}
+      - VERSAO=${VERSAO}
     deploy:
       resources:
         limits:

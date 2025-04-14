@@ -15,7 +15,6 @@ os.makedirs(REPORTS_DIR, exist_ok=True)
 
 def generate_report():
     start_time = time.time()
-    #log_message('warning',"Inicio do relatorio reports")
     server_hostname, server_ip = get_server_info()
     services = get_services()
     excluded_services = get_excluded_services()
@@ -40,7 +39,6 @@ def generate_report():
             "Memory Usage": memory_usage,
             "IP:Port": ip_and_port
         })
-        
         if service_name not in excluded_services:
             timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
             reason = f"{current_state} | {cpu_usage} | {memory_usage} | {ip_and_port}"
@@ -58,7 +56,6 @@ def generate_report():
                         "timestamp": timestamp,
                         "reason": reason
                     })
-
             check_send_alert(service_name, current_state, previous_state, server_hostname)
             last_state[service_name] = current_state
 
@@ -77,7 +74,6 @@ def generate_report():
 def save_report_to_file(stats):
     filename = os.path.join(REPORTS_DIR, f"{datetime.now().strftime('%Y-%m-%d')}_report.json")
     filename_latest = os.path.join(REPORTS_DIR, f"{datetime.now().strftime('%Y-%m-%d')}_report_latest.json")
-
     try:
         if os.path.exists(filename):
             with open(filename, 'r') as file:
