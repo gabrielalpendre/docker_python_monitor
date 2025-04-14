@@ -1,0 +1,36 @@
+# Ignorar node_modules (nao e necessário copiar para o container)
+node_modules/
+
+# Ignorar arquivos de log
+*.log
+
+*.sh
+*.yml
+Dockerfile
+*.conf
+
+# Ignorar diretórios de cache
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Ignorar arquivos de configuracao do editor
+.vscode/
+.idea/
+
+# Ignorar arquivos de build (se houver)
+dist/
+build/
+
+# Ignorar arquivos de teste
+test/
+tests/
+
+# Ignorar arquivos do sistema operacional
+.DS_Store
+Thumbs.db
+*/__pycache__/
+/files/
+/logs/
+.env
+windows-set-env.ps1

@@ -1,0 +1,10 @@
+flask
+prettytable
+pytz
+watchdog
+dotenv
+requests
+pymysql
+sqlalchemy
+apscheduler
+flask_socketio
