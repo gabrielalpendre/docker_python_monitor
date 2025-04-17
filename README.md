@@ -1,6 +1,8 @@
 # Monitoramento de Servicos Docker
 
-Este e um aplicativo Python simples para monitorar o status dos servicos Docker. Ele exibe os servicos em execucao e seus status, colorindo-os de verde se estiverem em execucao e vermelho se estiverem parados.
+Este e um aplicativo Python simples (mas com mais de 50 funcoes) para monitorar o status dos servicos Docker através do seu socket.
+
+Ele exibe os servicos em execucao e seus status, colorindo-os de verde se estiverem em execucao e vermelho se estiverem parados e envia alertas para as ferramentas Telegram ou Teams com base em um schedule configuravél através da rota /admin.
 
 ## Pre-requisitos
 
