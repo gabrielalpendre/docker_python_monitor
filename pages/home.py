@@ -1,7 +1,7 @@
 from flask import Blueprint, render_template_string
 from functions.services import get_server_info
 from dotenv import load_dotenv
-import os
+import os 
 
 load_dotenv(override=True)
 FLASK_PREFIX = os.getenv('PREFIX', '')

@@ -34,21 +34,22 @@ def get_medium_execution_time():
     if os.path.exists(REPORTS_SERVICES_FILE):
         with open(REPORTS_SERVICES_FILE, 'r') as json_file:
             data = json.load(json_file)
+        # Acessando a lista 'execution_times' corretamente
         execution_times = data.get('execution_times', [])
-        if execution_times:
+        if execution_times:  # Verifica se há entradas
             total_time = sum([entry['execution_time'] for entry in execution_times])
             average_time = total_time / len(execution_times)
             average_time = round(average_time, 2)
             if average_time < 2:
-                return f"{average_time} s 🟢"
+                return f"{average_time} s 🟢"  # Verde
             elif average_time <= 10:
-                return f"{average_time} s 🟡"
+                return f"{average_time} s 🟡"  # Amarelo
             else:
-                return f"{average_time} s 🔴"
+                return f"{average_time} s 🔴"  # Vermelho
         else:
-            return "0 s 🔴"
+            return "0 s 🔴"  # Caso nao haja tempos de execucao
     else:
-        return "0 s 🔴"
+        return "0 s 🔴"  # Caso o arquivo nao exista
 
 def save_excluded_services(excluded_services):
     with open(EXCLUDED_SERVICES_FILE, 'w') as file:

@@ -55,7 +55,6 @@ def reset_log_file():
 
 def log_message(level, message):
     logger = logging.getLogger()
-
     if level == 'info':
         logger.info(message)
     elif level == 'warning':

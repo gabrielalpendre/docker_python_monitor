@@ -38,13 +38,13 @@ def get_query_counts():
         count_lock = execute_count("""
             SELECT COUNT(*) FROM information_schema.PROCESSLIST WHERE STATE LIKE '%lock%';
         """)
-        status_lock = "🟢" if count_lock == 0 else "🔴"
+        curr_statuslock_icon = "🟢" if count_lock == 0 else "🔴"
         service_name = f"LockBanco"
-        current_state = f"{status_lock} {count_lock}"
+        current_state = f"{curr_statuslock_icon} {count_lock}"
         prev_status_icon = previous_state.get(service_name, "").split(" ")[0]
 
-        if prev_status_icon != status_lock:
-            if status_lock == "🔴":
+        if prev_status_icon != curr_statuslock_icon:
+            if curr_statuslock_icon == "🔴":
                 details, columns = execute_query("""
                     SELECT
                     ID AS PROCESS_ID,
@@ -54,7 +54,7 @@ def get_query_counts():
                     WHERE STATE LIKE '%lock%'
                 """)
 
-                if details:  # Só continua se houver retorno
+                if details:
                     for row in details:
                         for col, val in zip(columns, row):
                             current_state += f"\n{col}: {val}"
@@ -65,34 +65,21 @@ def get_query_counts():
                         "timestamp": timestamp,
                         "reason": current_state
                     })
-                    check_send_alert(service_name, current_state, previous_state, DB_HOSTNAME)
+            check_send_alert(service_name, current_state, previous_state, DB_HOSTNAME)
 
         last_state[service_name] = current_state
 
         # ----------------- Query 2: Mensagens com erro -----------------
         count_erro = execute_count("""
-            SELECT SQL_NO_CACHE COUNT(*)
-            FROM multaDetalhada md
-            WHERE md.id IN (
-                SELECT me.idmultaDetalhada
-                FROM mensagensErro me
-                WHERE md.id = me.idmultaDetalhada
-            )
-            AND (
-                md.dataInfracao > md.apCondutorDataVencimento
-                OR md.dataInfracao > md.dataVencimento
-                OR md.dataInfracao > md.dataVencimentoBoleto
-                OR md.cadastroDataHora < md.dataInfracao
-                OR (md.cadastroNotificacao IS NOT NULL AND md.cadastroNotificacao != '0000-00-00' AND md.dataInfracao > md.cadastroNotificacao)
-                OR (md.cadastroImposicao IS NOT NULL AND md.cadastroImposicao != '0000-00-00' AND md.dataInfracao > md.cadastroImposicao)
-            );
+            SELECT COUNT(mdo.id) FROM tabelaLegal mdo
+            WHERE mdo.id = "erro";
         """)
-        status_erro = "🟢" if count_erro == 0 else "🟡" if count_erro <= 50 else "🔴"
+        curr_status_icon = "🟢" if count_erro == 0 else "🟡" if count_erro <= 50 else "🔴"
         service_name = "MensagensComErro"
-        current_state = f"{status_erro} {count_erro}"
+        current_state = f"{curr_status_icon} {count_erro}"
         prev_status_icon = previous_state.get(service_name, "").split(" ")[0]
 
-        if ((prev_status_icon != "🔴" and status_erro == "🔴") or (prev_status_icon == "🔴" and status_erro == "🟢")):
+        if prev_status_icon != curr_status_icon and "🟡" not in (prev_status_icon, curr_status_icon):
             incidents_queryes.append({
                 "service": service_name,
                 "timestamp": timestamp,
@@ -104,17 +91,8 @@ def get_query_counts():
 
         # ----------------- Query 3: Multas OK -----------------
         count_correct = execute_count("""
-            SELECT COUNT(mdo.id) FROM multaDetalhada mdo
-            WHERE mdo.id IN (
-                SELECT me.idmultaDetalhada FROM mensagensErro me WHERE mdo.id = me.idmultaDetalhada
-            ) AND (
-                (mdo.apCondutorDataVencimento IS NULL OR mdo.apCondutorDataVencimento = '0000-00-00' OR mdo.dataInfracao <= mdo.apCondutorDataVencimento)
-                AND (mdo.dataVencimento IS NULL OR mdo.dataVencimento = '0000-00-00' OR mdo.dataInfracao <= mdo.dataVencimento)
-                AND (mdo.dataVencimentoBoleto IS NULL OR mdo.dataVencimentoBoleto = '0000-00-00' OR mdo.dataInfracao <= mdo.dataVencimentoBoleto)
-                AND (mdo.cadastroDataHora >= mdo.dataInfracao)
-                AND (mdo.cadastroNotificacao IS NULL OR mdo.cadastroNotificacao = '0000-00-00' OR mdo.dataInfracao <= mdo.cadastroNotificacao)
-                AND (mdo.cadastroImposicao IS NULL OR mdo.cadastroImposicao = '0000-00-00' OR mdo.dataInfracao <= mdo.cadastroImposicao)
-            );
+            SELECT COUNT(mdo.id) FROM tabelaLegal mdo
+            WHERE mdo.id = "ok";
         """)
         status_correct = "🟢"
         service_name = "MultasValidas"
@@ -130,8 +108,8 @@ def get_query_counts():
             save_incidents_to_file(incidents_queryes)
 
         return {
-            "id1": {"count": count_lock, "status_icon": status_lock},
-            "id2": {"count": count_erro, "status_icon": status_erro},
+            "id1": {"count": count_lock, "status_icon": curr_statuslock_icon},
+            "id2": {"count": count_erro, "status_icon": curr_status_icon},
             "id3": {"count": count_correct, "status_icon": status_correct},
         }
 

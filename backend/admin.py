@@ -1,8 +1,9 @@
-from flask import Blueprint, jsonify, request
+
 from functions.admin import get_medium_execution_time
 from functions.log import reset_log_file
 from functions.scheduler import restart_scheduler
-from dotenv import load_dotenv
+from flask import Blueprint, jsonify, request 
+from dotenv import load_dotenv 
 import os
 import json
 
@@ -46,4 +47,3 @@ def set_interval():
 def tempo_medio():
     tempo_medio = get_medium_execution_time()
     return {'tempo_medio': tempo_medio}
-

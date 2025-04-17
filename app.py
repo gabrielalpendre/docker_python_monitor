@@ -8,6 +8,8 @@ from backend.admin import bp_m_time
 from backend.admin import bp_set_interval
 from backend.alert import bp_load_config
 from backend.alert import bp_toggle_alert
+from backend.alert import bp_get_a_schedule
+from backend.alert import bp_upd_a_schedule
 from functions.scheduler import run_scheduler_in_background
 from functions.log import setup_logger, log_message
 from flask import Flask, redirect
@@ -23,7 +25,7 @@ FLASK_PORT = int(os.getenv("FLASK_PORT", 4005))
 def start_flask():
     app = Flask(__name__)
 
-    log_message('info', "Iniciando o servidor Flask...")
+    log_message('warning', "### Iniciando o servidor Flask...")
 
     os.makedirs("files", exist_ok=True)
     app.register_blueprint(bp_admin)
@@ -36,6 +38,9 @@ def start_flask():
     app.register_blueprint(bp_stats)
     app.register_blueprint(bp_load_config)
     app.register_blueprint(bp_toggle_alert)
+    app.register_blueprint(bp_get_a_schedule)
+    app.register_blueprint(bp_upd_a_schedule)
+
     
     if FLASK_PREFIX != '/homol':
         from pages.tabelas import bp_tabelas
