@@ -32,8 +32,9 @@ Os alertas sao enviados para as ferramentas Telegram, Teams e Email com base em 
 
 ### Execucao Local
 
-1.  Certifique-se de que o Docker esteja em execucao.
-2.  Execute o aplicativo:
+1.  Certifique-se de que o Docker esteja em execucao e que esteja com o swarm ativo. 
+2.  Exemplo de projeto CRUD para laboratorio: https://github.com/gabrielalpendre/docker_webapp_lab
+3.  Execute o aplicativo:
 
     ```bash
     python app.py
@@ -72,15 +73,19 @@ Acesse https://localhost:4005/
 ![home](prints/home.png)
 
 
-### Pagina Admin: Pagina para gerenciamento dos schedules, exclusoes dos servicos a serem monitorados e tambem acompanhamento do tempo medio de execucao.
+### Pagina Admin: 
+
+Pagina para gerenciamento dos schedules, exclusoes dos servicos a serem monitorados e tambem acompanhamento do tempo medio de execucao.
 
 Acesse https://localhost:4005/admin
 
 ![admin](prints/admin.png)
 
+
 ### Pagina/Console Logs:
 
-Acesse https://localhost:4005/logs
+Acesse https://localhost:4005/
+
 Arquivo logs/flask_app.log
 
 ![console-logs](prints/logs.png)
