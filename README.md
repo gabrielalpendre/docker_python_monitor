@@ -1,6 +1,11 @@
 # Monitoramento de Servicos Docker
 
-Este é um aplicativo Python simples para monitorar o status dos servicos Docker. Ele exibe os servicos em execucao e seus status, colorindo-os de verde se estiverem em execucao e vermelho se estiverem parados.
+Este é um aplicativo Python simples para monitorar o status dos servicos Docker Swarm, Filas AWS, Tabelas Banco de Dados. 
+
+Ele exibe os servicos em execucao e seus status, colorindo-os de verde se estiverem em execucao e vermelho se estiverem parados, é possivel tambem ter visualizacao em amarelo para ficar em alerta.
+
+Os alertas sao enviados para as ferramentas Telegram, Teams e Email com base em alteracoes de status entre vermelho-verde.
+
 
 ## Pre-requisitos
 
@@ -19,7 +24,7 @@ Este é um aplicativo Python simples para monitorar o status dos servicos Docker
     pip install --trusted-host pypi.org --trusted-host files.pythonhosted.org --no-cache-dir -r requirements.txt
     ```
 
-2.  Configure o arquivo `.env`:
+2.  Configure o arquivo `.env` com base no env.example:
 
     * Verifique e ajuste as variáveis de ambiente no arquivo `.env` conforme necessário.
 
@@ -57,19 +62,36 @@ Este é um aplicativo Python simples para monitorar o status dos servicos Docker
 
 ## Utilizacao
 
+### Pagina Home:
+
 Acesse https://localhost:4005/
 
 * **Verde**: Servico em execucao.
 * **Vermelho**: Servico parado.
 
 ![home](prints/home.png)
+
+
+### Pagina Admin: Pagina para gerenciamento dos schedules, exclusoes dos servicos a serem monitorados e tambem acompanhamento do tempo medio de execucao.
+
+Acesse https://localhost:4005/admin
+
 ![admin](prints/admin.png)
+
+### Pagina/Console Logs:
+
+Acesse https://localhost:4005/logs
+Arquivo logs/flask_app.log
+
 ![console-logs](prints/logs.png)
+
 
 ## Contribuicao
 
 Contribuicões sao bem-vindas! Sinta-se à vontade para abrir issues e pull requests para melhorias e correcões.
 
+
 ## Criador
 
-Gabriel Alpendre 2025 --copyright--
+Gabriel Alpendre 2025 --please copyright--
+https://www.linkedin.com/in/gabriel-alpendre/
