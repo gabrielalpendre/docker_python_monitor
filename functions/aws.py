@@ -15,9 +15,9 @@ region_name = os.getenv('AWS_REGION', 'us-east-1')
 aws_access_key_id_prod = os.getenv('AWS_ACCESS_KEY_ID_PROD')
 aws_secret_access_key_prod = os.getenv('AWS_SECRET_ACCESS_KEY_PROD')
 aws_account_id_prod = os.getenv('AWS_ID_PROD')
-aws_access_key_id_old = os.getenv('AWS_ACCESS_KEY_ID_OLD')
-aws_secret_access_key_old = os.getenv('AWS_SECRET_ACCESS_KEY_OLD')
-aws_account_id_old = os.getenv('AWS_ID_OLD')
+aws_access_key_id_old = os.getenv('AWS_ACCESS_KEY_ID_DEV')
+aws_secret_access_key_old = os.getenv('AWS_SECRET_ACCESS_KEY_DEV')
+aws_account_id_old = os.getenv('AWS_ID_DEV')
 
 
 ALERTS_DIR = os.getenv('ALERTS_DIR', 'files/alerts')

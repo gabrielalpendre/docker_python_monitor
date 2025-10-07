@@ -48,7 +48,7 @@ if FLASK_PREFIX != '/homol':
                             <label class="form-label mb-0 me-2" for="type">Selecione a conta:</label>
                             <select class="form-select" v-model="tipoSelecionado" id="type" style="width: auto;">
                                 <option value="producao">Produção</option>
-                                <option value="antiga">Antiga</option>
+                                <option value="antiga">Desenvolvimento</option>
                             </select>
                         </div>
                     </div>
