@@ -1,28 +1,25 @@
 # Monitoramento de Servicos Docker
 
-Este e um aplicativo Python simples para monitorar o status dos servicos Docker. Ele exibe os servicos em execucao e seus status, colorindo-os de verde se estiverem em execucao e vermelho se estiverem parados.
+Este é um aplicativo Python simples para monitorar o status dos servicos Docker. Ele exibe os servicos em execucao e seus status, colorindo-os de verde se estiverem em execucao e vermelho se estiverem parados.
 
 ## Pre-requisitos
 
 * Python 3.x
 * Docker instalado e em execucao
 
-## Instalacao
+## Ambiente
 
-1.  Clone o repositório:
-
-    ```bash
-    git clone <URL_do_seu_repositorio>
-    cd <nome_do_repositorio>
-    ```
-
-2.  Instale as dependências:
+1.  Instale as dependências:
 
     ```bash
-    pip install --no-cache-dir -r requirements.txt
+    python3 -m venv venv
+    source venv/bin/activate # Linux
+    venv/bin/activate # Windows
+    pip install --upgrade pip
+    pip install --trusted-host pypi.org --trusted-host files.pythonhosted.org --no-cache-dir -r requirements.txt
     ```
 
-3.  Configure o arquivo `.env`:
+2.  Configure o arquivo `.env`:
 
     * Verifique e ajuste as variáveis de ambiente no arquivo `.env` conforme necessário.
 
@@ -39,29 +36,35 @@ Este e um aplicativo Python simples para monitorar o status dos servicos Docker.
 
 ### Execucao com Docker
 
-1.  Construa a imagem Docker:
+1. Set Envs
 
     ```bash
-    ./build.sh
+    export PREFIX=""
+    export SERVER_HOSTNAME=$(hostname)
+    export SERVER_IP=$(hostname -I | awk '{print $1}')
     ```
 
-2.  Implante o contêiner:
+2. Substitui as variáveis no docker-compose.yml e sobe os containers
 
     ```bash
-    ./deploy.sh
+    envsubst < docker-compose.local.yml | docker compose -f - up --build -d
+    ```
+
+    Restart:
+    ```bash
+    envsubst < docker-compose.local.yml | docker compose -f - down && envsubst < docker-compose.local.yml | docker compose -f - up --build -d
     ```
 
 ## Utilizacao
 
-Após a execucao, o aplicativo exibirá uma lista dos servicos Docker com seus respectivos status coloridos.
+Acesse https://localhost:4005/
 
 * **Verde**: Servico em execucao.
 * **Vermelho**: Servico parado.
 
-![home](images/web1.png)
-![incidentes](images/web2.png)
-![tabelas](images/web3.png)
-![admin](images/web4.png)
+![home](prints/home.png)
+![admin](prints/admin.png)
+![console-logs](prints/logs.png)
 
 ## Contribuicao
 
@@ -69,4 +72,4 @@ Contribuicões sao bem-vindas! Sinta-se à vontade para abrir issues e pull requ
 
 ## Criador
 
-Chat GPT e Gabriel Alpendre 2025 nocopyright (but credits) 
+Gabriel Alpendre 2025 --copyright--

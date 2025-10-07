@@ -1,0 +1,31 @@
+version: '3.3'
+services:
+  docker:
+    image: $DOCKER_IMAGE
+    env_file: .env.prod
+    ports:
+      - "$FLASK_PORT:$FLASK_PORT"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /proc/loadavg:/host_proc_loadavg:ro
+      - /proc/uptime:/host_proc_uptime:ro
+      - ./files:/monitor/files
+      - ./logs:/monitor/logs
+    environment:
+      - SERVER_HOSTNAME=$SERVER_HOSTNAME
+      - SERVER_IP=$SERVER_IP
+      - PREFIX=$PREFIX
+      - VERSION=$VERSION
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 512M
+      restart_policy:
+        condition: on-failure
+    networks:
+      - report_network
+
+networks:
+  report_network:
+    driver: overlay

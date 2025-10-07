@@ -14,16 +14,16 @@ def setup_logger():
     os.makedirs(os.path.dirname(LOG_FILE), exist_ok=True)
     logging.basicConfig(
         filename=LOG_FILE,
-        level=logging.WARNING,  # O nível mínimo de log e WARNING, entao DEBUG será ignorado
+        level=logging.WARNING,
         format='%(asctime)s - %(levelname)s - %(message)s',
-        filemode='w',  # Sobrescreve o arquivo de log
+        filemode='w',
     )
     handler = RotatingFileHandler(LOG_FILE, maxBytes=log_rotation_size, backupCount=backup_count)
-    handler.setLevel(logging.WARNING)  # Filtra logs de nível DEBUG para nao serem salvos
+    handler.setLevel(logging.WARNING)
     formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
     handler.setFormatter(formatter)
     logger = logging.getLogger()
-    logger.setLevel(logging.WARNING)  # Define o nível mínimo de log como WARNING para nao salvar DEBUG
+    logger.setLevel(logging.WARNING) 
     logger.addHandler(handler)
     class RequestFilter(logging.Filter):
         def filter(self, record):
@@ -34,7 +34,7 @@ def setup_logger():
 
 def read_log_file():
     try:
-        with open(LOG_FILE, 'r', buffering=1) as file:  # Uso de buffering
+        with open(LOG_FILE, 'r', buffering=1) as file:
             while True:
                 line = file.readline()
                 if line:
@@ -55,7 +55,6 @@ def reset_log_file():
 
 def log_message(level, message):
     logger = logging.getLogger()
-
     if level == 'info':
         logger.info(message)
     elif level == 'warning':

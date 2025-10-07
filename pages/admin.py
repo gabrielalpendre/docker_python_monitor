@@ -9,7 +9,7 @@ load_dotenv(override=True)
 
 FLASK_PREFIX = os.getenv('PREFIX', '')
 ADMIN_DIR = os.getenv('ADMIN_DIR', '')
-VERSAO = os.getenv('VERSAO', '-dev')
+VERSAO = os.getenv('VERSION', 'development')
 
 bp_admin = Blueprint('admin', __name__)
 
@@ -17,207 +17,244 @@ bp_admin = Blueprint('admin', __name__)
 def admin():
     services = get_services()
     excluded_services = get_excluded_services()
-    tempo_medio = get_medium_execution_time()
+    tempo_medio = get_medium_execution_time('scheduler')
     interval_data = get_scheduler_interval()
     current_interval = interval_data.get("interval_time") if isinstance(interval_data, dict) else interval_data
 
     if request.method == 'POST':
         form_type = request.json.get('form_type')
-
         if form_type == 'excludedForm':
             selected_services = request.json.get('excluded_services')
             save_excluded_services(selected_services)
-            return jsonify({'message': 'Alterado!'})
+            return jsonify({'message': 'Servico(s) excluidos!'})
 
     return render_template_string("""
-    <html>
-        <head>
-            <title>Administracao de Servicos</title>
-            <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet" />
-            <style>
-                .spaced-section {
-                    margin-top: 50px;
-                }
-                .btn-gray {
-                    background-color: #6c757d;
-                    border-color: #6c757d;
-                    color: white;
-                }
-                .btn-gray:hover {
-                    background-color: #5a6268;
-                    border-color: #545b62;
-                }
-                .field_interval {
-                    max-width: 70px;
-                }
-            </style>
-        </head>
-        <body>
-            <!-- Header -->
-            <nav class="navbar navbar-light bg-white shadow-sm px-4 flex justify-between items-center h-40">
-                <!-- Logo + Título -->
-                <div class="flex items-center">
-                    <img src="https://assets.lwtecnologia.com.br/public/OFICIAL_BLACK.png" alt="Logo" height="25" class="me-3" />
-                    <!--<h5 class="mb-0 text-xl font-medium">Monitoramento</h5>-->
-                </div>  
-                <!-- Botões -->
-                <div class="d-flex">
-                    <div class="text-end mb-2 mt-2 px-4">{{ VERSAO }}</div>
-                    <a href="{{ url_for('logs.logs') }}" class="btn btn-gray btn-refresh me-2">Service Logs</a>
-                    <!-- <a href="/reset_log" onclick="resetLog()" class="btn btn-gray btn-refresh me-2">Reset Log</a> -->
-                    <a href="{{ url_for('incidentes.incidentes') }}" class="btn btn-gray me-2">Incidentes</a>
-                    {% if FLASK_PREFIX != '/homol' %}
-                        <a href="{{ url_for('tabelas.tabelas') }}" class="btn btn-gray me-2">Banco de Dados</a>
-                    {% endif %}
-                    <a href="{{ url_for('home.home') }}" class="btn btn-gray me-2">Home</a>
+    <!DOCTYPE html>
+    <html lang="pt-br">
+    <head>
+        <meta charset="UTF-8">
+        <title>Administração de Serviços</title>
+        <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet" />
+        <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+        <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='images/favicon.ico') }}">
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/toastify-js/src/toastify.min.css">
+        <script src="https://cdn.jsdelivr.net/npm/toastify-js"></script>
+        <style>
+            body.dark { background-color: #121212; color: #eee; }
+            body.light { background-color: #f5f5f5; color: #333; }
+            .navbar { transition: background-color 0.3s; }
+            .container-section { 
+                background-color: var(--section-bg); 
+                padding: 20px; 
+                border-radius: 8px; 
+                transition: background-color 0.3s; 
+            }
+            body.dark .container-section { --section-bg: #2b2b2b; }
+            body.light .container-section { --section-bg: #e0e0e0; }
+        </style>
+    </head>
+    <body class="dark">
+        <!-- Header -->
+        <nav class="navbar navbar-light shadow-sm px-4 flex justify-between items-center" style="height:60px;">
+            <div class="d-flex align-items-center">
+                <img src="{{ url_for('static', filename='images/logo.png') }}" alt="Logo" height="25" class="me-3" />
+            </div>  
+            <div class="d-flex align-items-center gap-2">
+                <div class="text-end fw-bold">{{ VERSAO }}</div>
+                <a href="{{ url_for('logs.logs') }}" class="btn btn-secondary btn-sm">Service Logs</a>
+                <a href="{{ url_for('incidentes.incidentes') }}" class="btn btn-secondary btn-sm">Incidentes</a>
+                {% if FLASK_PREFIX != '/homol' %}
+                    <a href="{{ url_for('filas.filas') }}" class="btn btn-secondary btn-sm">Filas AWS</a>
+                    <a href="{{ url_for('tabelas.tabelas') }}" class="btn btn-secondary btn-sm">Banco de Dados</a>
+                {% endif %}
+                <a href="{{ url_for('home.home') }}" class="btn btn-secondary btn-sm">Home</a>
+                <button id="toggleTheme" class="btn btn-outline-primary btn-sm">Modo Light/Dark</button>
+            </div>
+        </nav>
+
+        <div class="container mt-4 container-section">
+            <h2>Administração de serviços</h2>
+            <div class="row">
+                <div class="col-md-6">
+                    <p><strong>Tempo médio da execução do relatório:</strong> {{ tempo_medio }}</p>
+
+                    <form id="intervalForm" class="mb-4">
+                        <input type="hidden" name="form_type" value="intervalForm">
+                        <div class="mb-2 d-flex align-items-center gap-2">
+                            <label for="current_interval" class="form-label mb-0">Intervalo (segundos):</label>
+                            <input type="number" class="form-control form-control-sm" id="current_interval" name="current_interval" min="1" value="{{ current_interval }}">
+                            <button type="submit" class="btn btn-primary btn-sm">Alterar</button>
+                        </div>
+                    </form>
+
+                    <form id="excludedForm">
+                        <input type="hidden" name="form_type" value="excludedForm">
+                        <p class="mb-2"><strong>Serviços excluídos do monitoramento:</strong></p>
+                        {% for service in services %}
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="excluded_services" value="{{ service[0] }}" {% if service[0] in excluded_services %}checked{% endif %}>
+                                <label class="form-check-label">{{ service[0] }}</label>
+                            </div>
+                        {% endfor %}
+                        <button type="submit" class="btn btn-primary btn-sm mt-2">Salvar</button>
+                    </form>
                 </div>
-            </nav>
-            <div>
-                <div class="container mt-4">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <div class="d-flex flex-column">
-                            <h2 class="mb-3">Administracao de servicos</h2>
-                            <div>
-                                <strong class="d-inline">Tempo medio da duracao da execucao do relatório:</strong> 
-                                <span id="tempo_medio" class="fs-5 d-inline">{{ tempo_medio }}</span>
-                            </div>
-                        </div>
-
+                <div class="col-md-6">
+                    <h5>Ferramentas de Alerta</h5>
+                    <div class="mb-3 d-flex gap-2 align-items-center">
+                        <select id="service-selector" class="form-select form-select-sm" style="width:auto;">
+                            <option value="telegram">Telegram</option>
+                            <option value="teams">Teams</option>
+                        </select>
+                        <input type="time" id="global-time" class="form-control form-control-sm">
+                        <select id="global-action" class="form-select form-select-sm" style="width:auto;">
+                            <option value="on">Ativar</option>
+                            <option value="off">Desativar</option>
+                        </select>
+                        <button onclick="addSchedule()" class="btn btn-primary btn-sm">Adicionar</button>
                     </div>
-                    <div class="d-flex justify-content-between align-items-center">
-                        <div class="d-flex spaced-section">
-                            <form id="intervalForm" method="POST">
-                                <input type="hidden" name="form_type" value="intervalForm">
-                                <div class="mb-3">
-                                    <div class="d-flex align-items-center">
-                                        <h5 class="me-2">Alterar intervalo de execucao do relatório</h5>
-                                        <button type="submit" id="updateInterval" class="btn btn-primary mt-3">Alterar</button>
-                                    </div>
-                                    <div class="d-flex align-items-center">
-                                        <label for="current_interval" class="form-label me-2">Intervalo (em segundos):</label>
-                                        <input class="field_interval form-control" type="number" id="current_interval" name="current_interval" min="1" value="{{ current_interval }}">
-                                    </div>
-                                </div>
-                            </form>
-                        </div>
-                        <!-- <div class="spaced-section d-flex flex-column align-items-center"> -->
-                        <!-- Telegram Toggle -->
-                        <div class="d-flex align-items-center me-4">
-                            <h5 class="mb-3 me-2">Alertas do Telegram</h5>
-                            <div class="form-check form-switch">
-                                <input class="form-check-input me-2" type="checkbox" id="toggleTelegramLogs">
-                                <label class="form-check-label" for="toggleTelegramLogs"></label>
-                            </div>
-                        </div>
-
-                        <!-- Teams Toggle -->
-                        <div class="d-flex align-items-center">
-                            <h5 class="mb-3 me-2">Alertas do Teams</h5>
-                            <div class="form-check form-switch">
-                                <input class="form-check-input me-2" type="checkbox" id="toggleTeamsLogs">
-                                <label class="form-check-label" for="toggleTeamsLogs"></label>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="d-flex align-items-center">
-                        <form id="excludedForm" method="POST">
-                            <input type="hidden" name="form_type" value="excludedForm">
-                            <div class="d-flex align-items-center">
-                                <h5 class="mb-0 mr-3 me-2">Marque os servicos para excluir do monitoramento</h5>
-                                <button type="submit" class="btn btn-primary mt-3 ml-3">Salvar</button>
-                            </div>
-                            {% for service in services %}
-                                <div class="form-check">
-                                    <input class="form-check-input" type="checkbox" name="excluded_services" value="{{ service[0] }}" {% if service[0] in excluded_services %}checked{% endif %}>
-                                    <label class="form-check-label">{{ service[0] }}</label>
-                                </div>
-                            {% endfor %}
-                        </form>
-                    </div>
+                    <div id="schedule-container"></div>
                 </div>
             </div>
-            <script>
-            document.getElementById('intervalForm').addEventListener('submit', (e) => {
-                e.preventDefault(); // Evita o envio tradicional do formulário
-                const intervalo = parseInt(document.getElementById('current_interval').value);
-                if (isNaN(intervalo) || intervalo <= 0) {
-                    alert("Por favor, insira um intervalo válido maior que 0.");
-                    return;
+        </div>
+
+        <script>
+            // Dark/Light Mode
+            const body = document.body;
+            const toggleBtn = document.getElementById('toggleTheme');
+            toggleBtn.addEventListener('click', () => {
+                if (body.classList.contains('dark')) {
+                    body.classList.remove('dark');
+                    body.classList.add('light');
+                } else {
+                    body.classList.remove('light');
+                    body.classList.add('dark');
                 }
-                fetch("{{ url_for('set_interval.set_interval') }}", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ interval: intervalo })
-                })
-                .then(response => response.json())
-                .then(data => {
-                    alert(data.message || data.error);
-                    location.reload(); // Recarrega a página após alteracao bem-sucedida
-                })
-                .catch(console.error);
             });
-            document.getElementById('excludedForm').addEventListener('submit', (e) => {
-                e.preventDefault(); // Prevent form submission
-                const selectedServices = [];
-                const checkboxes = document.querySelectorAll('input[name="excluded_services"]:checked');
-                checkboxes.forEach(checkbox => {
-                    selectedServices.push(checkbox.value);
+
+            // Form listeners
+            document.addEventListener('DOMContentLoaded', () => {
+                setupFormListeners();
+                fetchSchedules();
+            });
+
+            function setupFormListeners() {
+                document.getElementById('intervalForm')?.addEventListener('submit', e => {
+                    e.preventDefault();
+                    const intervalo = parseInt(document.getElementById('current_interval').value);
+                    if (isNaN(intervalo) || intervalo <= 0) return alert("Intervalo inválido!");
+                    fetch("{{ url_for('set_interval.set_interval') }}", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ interval: intervalo })
+                    }).then(r => r.json()).then(data => { alert(data.message || data.error); location.reload(); });
                 });
-                fetch("{{ url_for('admin.admin') }}", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ form_type: 'excludedForm', excluded_services: selectedServices })
-                })
-                .then(response => response.json())
-                .then(data => {
-                    alert(data.message || data.error);
-                })
-                .catch(console.error);
-            });
-            function loadAlertConfig() {
-                fetch("{{ url_for('load_config.load_config') }}")
-                    .then(response => response.json())
-                    .then(data => {
-                        // Telegram
-                        const telegramToggle = document.getElementById('toggleTelegramLogs');
-                        telegramToggle.checked = data.telegram_alerts_enabled;
-                        telegramToggle.nextElementSibling.innerText = telegramToggle.checked ? "Ativado" : "Desativado";
-                        // Teams
-                        const teamsToggle = document.getElementById('toggleTeamsLogs');
-                        teamsToggle.checked = data.teams_alerts_enabled;
-                        teamsToggle.nextElementSibling.innerText = teamsToggle.checked ? "Ativado" : "Desativado";
-                    })
-                    .catch(console.error);
+
+                document.getElementById('excludedForm')?.addEventListener('submit', e => {
+                    e.preventDefault();
+                    const selectedServices = Array.from(document.querySelectorAll('input[name="excluded_services"]:checked')).map(c => c.value);
+                    fetch("{{ url_for('admin.admin') }}", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ form_type: 'excludedForm', excluded_services: selectedServices })
+                    }).then(r => r.json()).then(data => { alert(data.message || data.error); });
+                });
             }
+
+            let currentSchedules = {};
+            function fetchSchedules() {
+                fetch("{{ url_for('get_alert_schedule.get_alert_schedule') }}")
+                    .then(res => res.json())
+                    .then(data => {
+                        currentSchedules = data;
+                        renderSchedules();
+                        loadAlertConfig();
+                    }).catch(console.error);
+            }
+
+            function renderSchedules() {
+                const container = document.getElementById('schedule-container');
+                container.innerHTML = '';
+                ['telegram', 'teams'].forEach(tool => {
+                    const title = tool.charAt(0).toUpperCase() + tool.slice(1);
+                    const scheduleList = currentSchedules[tool] || [];
+                    const html = `
+                        <div class="mb-4">
+                            <div class="d-flex align-items-center mb-2">
+                                <strong class="me-2">${title}</strong>
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input me-2" type="checkbox" id="toggle${title}Logs">
+                                    <label class="form-check-label" for="toggle${title}Logs"></label>
+                                </div>
+                            </div>
+                            <ul id="${tool}-schedule-list">
+                                ${scheduleList.map((s, i) => `<li>${s.time} - ${s.action.toUpperCase()} <button onclick="removeSchedule('${tool}', ${i})" class="btn btn-sm btn-danger ms-2">Remover</button></li>`).join('')}
+                            </ul>
+                        </div>`;
+                    container.innerHTML += html;
+                });
+                attachToggleListeners();
+            }
+
+            function attachToggleListeners() {
+                ['Telegram', 'Teams'].forEach(title => {
+                    const toggle = document.getElementById(`toggle${title}Logs`);
+                    if (toggle) {
+                        toggle.removeEventListener('change', toggleAlertState);
+                        toggle.addEventListener('change', toggleAlertState);
+                    }
+                });
+            }
+
+            function addSchedule() {
+                const tool = document.getElementById('service-selector').value;
+                const time = document.getElementById('global-time').value;
+                const action = document.getElementById('global-action').value;
+                if (!time) return alert("Horário inválido.");
+                const updatedSchedule = [...(currentSchedules[tool] || []), { time, action }];
+                updateScheduleOnServer(tool, updatedSchedule);
+            }
+
+            function removeSchedule(tool, index) {
+                const updatedSchedule = [...(currentSchedules[tool] || [])];
+                updatedSchedule.splice(index, 1);
+                updateScheduleOnServer(tool, updatedSchedule);
+            }
+
+            function updateScheduleOnServer(tool, schedule) {
+                fetch("{{ url_for('update_alert_schedule.update_alert_schedule') }}", {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ tool, schedule })
+                }).then(() => fetchSchedules()).catch(console.error);
+            }
+
+            function loadAlertConfig() {
+                fetch("{{ url_for('alert_config.alert_config') }}")
+                    .then(r => r.json())
+                    .then(data => {
+                        setToggleState('Telegram', data.telegram === 'enabled');
+                        setToggleState('Teams', data.teams === 'enabled');
+                    }).catch(console.error);
+            }
+
+            function setToggleState(service, isEnabled) {
+                const toggle = document.getElementById(`toggle${service}Logs`);
+                if (toggle) { toggle.checked = isEnabled; }
+            }
+
             function toggleAlertState() {
-                const telegramToggle = document.getElementById('toggleTelegramLogs');
-                const teamsToggle = document.getElementById('toggleTeamsLogs');
                 const payload = {
-                    telegram_alerts_enabled: telegramToggle.checked,
-                    teams_alerts_enabled: teamsToggle.checked
+                    telegram: document.getElementById('toggleTelegramLogs')?.checked,
+                    teams: document.getElementById('toggleTeamsLogs')?.checked
                 };
-                fetch('{{ url_for('toggle_alert.toggle_alert') }}', {
+                fetch('{{ url_for('alert_toggle.alert_toggle') }}', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(payload)
-                })
-                .then(response => {
-                    if (!response.ok) throw new Error("Erro ao atualizar alertas");
-                    return response.json();
-                })
-                .then(data => {
-                    telegramToggle.nextElementSibling.innerText = telegramToggle.checked ? "Ativado" : "Desativado";
-                    teamsToggle.nextElementSibling.innerText = teamsToggle.checked ? "Ativado" : "Desativado";
-                })
-                .catch(error => {
-                    alert(error.message);
-                    console.error(error);
-                });
+                }).then(r => r.json()).then(() => fetchSchedules()).catch(console.error);
             }
-            window.onload = loadAlertConfig;
-            document.getElementById('toggleTelegramLogs').addEventListener('change', toggleAlertState);
-            document.getElementById('toggleTeamsLogs').addEventListener('change', toggleAlertState);
-            </script>
-        </body>
+        </script>
+    </body>
     </html>
     """, services=services, excluded_services=excluded_services, tempo_medio=tempo_medio, current_interval=current_interval, FLASK_PREFIX=FLASK_PREFIX, VERSAO=VERSAO)

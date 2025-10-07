@@ -8,3 +8,4 @@ pymysql
 sqlalchemy
 apscheduler
 flask_socketio
+boto3
