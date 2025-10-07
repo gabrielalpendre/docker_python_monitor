@@ -1,19 +1,23 @@
 from apscheduler.schedulers.background import BackgroundScheduler 
 from apscheduler.executors.pool import ThreadPoolExecutor 
-from functions.reports import generate_report
-from functions.log import log_message
+from functions.reports import generate_services_report, generate_server_report
+from functions.aws import generate_queue_report
+from functions.reports import save_execution_time
 from functions.alerts import save_alert_config, load_alert_config, load_alert_schedules
+from functions.log import log_message
 import threading
 import json
 import os
-from datetime import datetime
+import time
 
 # === Diretórios e arquivos ===
 ADMIN_DIR = os.getenv('ADMIN_DIR', 'files/admin')
 ALERTS_DIR = os.getenv('ALERTS_DIR', 'files/alerts')
-INTERVAL_SERVICES_FILE = os.path.join(ADMIN_DIR, "interval_execution_time.json")
+INTERVAL_SERVICES_FILE = os.path.join(ADMIN_DIR, "scheduler_interval.json")
 SCHEDULE_ALERT_FILE = os.path.join(ALERTS_DIR, "alert_schedules.json")
-DEFAULT_INTERVAL = 5
+FLASK_PREFIX = os.getenv('PREFIX', '')
+
+DEFAULT_INTERVAL = 10
 
 scheduler = None
 scheduler_lock = threading.Lock()
@@ -27,7 +31,25 @@ def get_scheduler_interval():
         data = json.load(json_file)
     return data.get('interval_time', DEFAULT_INTERVAL)
 
+def set_scheduler_interval(interval: int) -> None:
+    """Salva o intervalo no arquivo JSON."""
+    with open(INTERVAL_SERVICES_FILE, 'w') as json_file:
+        json.dump({"interval_time": interval}, json_file)
 scheduler_interval = get_scheduler_interval()
+
+# ==== Funções para criar os schedulers de reports ====
+def scheduled_reports():
+    start_time = time.time()
+    generate_services_report()
+    generate_server_report()
+    if FLASK_PREFIX != '/homol':    
+        start_time_queues = time.time()
+        generate_queue_report('prd')
+        generate_queue_report('old')
+        execution_time_queues = time.time() - start_time_queues
+        save_execution_time('queues', execution_time_queues)
+    execution_time = time.time() - start_time
+    save_execution_time('scheduler', execution_time)
 
 def start_scheduler():
     """Inicia o agendador principal e o agendador de alertas se ainda não estiverem rodando."""
@@ -39,7 +61,7 @@ def start_scheduler():
         executors = {'default': ThreadPoolExecutor(10)}
         scheduler = BackgroundScheduler(executors=executors)
         try:
-            scheduler.add_job(generate_report, 'interval', seconds=scheduler_interval, id='generate_report', replace_existing=True)
+            scheduler.add_job(scheduled_reports, 'interval', seconds=scheduler_interval, id='scheduled_reports', replace_existing=True)
             schedule_alert_jobs(scheduler)
             scheduler.start()
             log_message('warning', "### Agendador iniciado com sucesso.")
@@ -70,7 +92,7 @@ def restart_scheduler(interval_seconds):
         scheduler = BackgroundScheduler(executors=executors)
 
         try:
-            scheduler.add_job(generate_report, 'interval', seconds=scheduler_interval, id='generate_report', replace_existing=True)
+            scheduler.add_job(scheduled_reports, 'interval', seconds=scheduler_interval, id='scheduled_reports', replace_existing=True)
             schedule_alert_jobs(scheduler)
             scheduler.start()
             log_message('warning', f"### Agendador reiniciado")
@@ -84,7 +106,6 @@ def run_scheduler_in_background():
     scheduler_thread.start()
 
 # ==== Funções para alert scheduler ====
-
 def call_toggle_alert(service, action, scheduled_time):
     """Atualiza o estado de alerta com base na configuração agendada."""
     try:

@@ -17,134 +17,132 @@ if FLASK_PREFIX != '/homol':
         <head>
             <title>Docker Service Query</title>
             <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet" />
-            <script src="https://cdn.jsdelivr.net/npm/jquery@3.6.0/dist/jquery.min.js"></script>
-            <style>
-                .container {
-                    position: relative;
-                }
-                .btn-gray {
-                    background-color: #6c757d;
-                    border-color: #6c757d;
-                    color: white;
-                }
-                .btn-gray:hover {
-                    background-color: #5a6268;
-                    border-color: #545b62;
-                }
-                .header-container {
-                    display: flex;
-                    justify-content: space-between;
-                    align-items: center;
-                    width: 100%;
-                }
-                .last-update {
-                    margin-left: auto;
-                    margin-right: 10px;
-                    margin-top: 0;
-                    text-align: right;
-                }
-                #query {
-                    font-size: 2.5rem;
-                    font-weight: bold;
-                }
-                .table-responsive {
-                    max-width: 100%;
-                    overflow-x: auto;
-                }
-                table {
-                    width: 100%;
-                    table-layout: fixed;
-                }
-                td, th {
-                    text-align: center;
-                    height: 80px;
-                    vertical-align: middle;
-                    font-size: 1.5rem;
-                    overflow: hidden;
-                    text-overflow: ellipsis;
-                }
-            </style>
+            <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet">
+            <script src="https://cdn.jsdelivr.net/npm/vue@2.6.14/dist/vue.min.js"></script>
+            <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+            <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+            <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='images/favicon.ico') }}">
         </head>
         <body>
-            <!-- Header -->
-            <nav class="navbar navbar-light bg-white shadow-sm px-4 flex justify-between items-center h-10 overflow-hidden">
-                <!-- Logo + Título -->
-                <div class="flex items-center">
-                    <img src="https://assets.lwtecnologia.com.br/public/OFICIAL_BLACK.png" alt="Logo" height=25 me-3" />
-                    <!--<h5 class="text-xl font-medium leading-none">Monitoramento</h5>-->
-                </div>
+            <div id="app">
+                <nav class="navbar navbar-light bg-white shadow-sm px-4 d-flex justify-content-between align-items-center">
+                    <div class="d-flex align-items-center">
+                        <img :src="logoSrc" alt="GABRL" height="25" class="me-3" />
+                    </div>
+                    <div class="last-update text-end" v-if="lastUpdate">
+                        <strong>Última atualização:</strong>
+                        <div class="fs-5">[[ lastUpdate ]]</div>
+                    </div>
+                    <div class="buttons d-flex gap-2">
+                        <a href="{{ url_for('incidentes.incidentes') }}" class="btn btn-gray">Histórico de incidentes</a>
+                        <a href="{{ url_for('filas.filas') }}" class="btn btn-gray">Filas AWS</a>
+                        <a href="{{ url_for('home.home') }}" class="btn btn-gray">Home</a>
+                        <button class="btn btn-secondary ms-3" @click="toggleTheme" title="Alternar tema">
+                            <i :class="theme === 'dark' ? 'bi bi-sun' : 'bi bi-moon'"></i>
+                        </button>
+                    </div>
+                </nav>
 
-                <div id="last-update" class="last-update me-2 hidden">
-                    <strong>Última atualização:</strong>
-                    <div id="last-update-time" class="fs-5"></div>
-                </div>
-
-                <div class="buttons flex gap-2">
-                    <a href="{{ url_for('incidentes.incidentes') }}" class="btn btn-gray text-sm px-3 py-1">Histórico de incidentes</a>
-                    <a href="{{ url_for('home.home') }}" class="btn btn-gray text-sm px-3 py-1">Home</a>
-                </div>
-            </nav>
-            <div class="container mt-4">
-                <div class="header-container">
-                    <div class="d-flex flex-column">
-                        <h4 class="mb-3">Banco de Dados - {{ db_hostname }}</h4>
+                <div class="container mt-4">
+                    <div class="header-container mb-3">
+                        <h4>Banco de Dados - {{ db_hostname }}</h4>
                     </div>
 
-                </div>
-                <br>
-                <div id="loading" class="alert alert-info spaced-section">Carregando...</div>
-                <div id="query" class="table-responsive spaced-section"></div>
-                <div id="erro" class="alert alert-danger">Erro ao buscar os dados do banco de dados.</div>
-            </div>
-            <script>
-            $('#erro').hide();
-            function fetchQuery() {
-                $.get("{{ url_for('query.query') }}", function(data) {
-                    if (data.results) {
-                        $('#loading').hide();
+                    <div v-if="erro" class="alert alert-danger spaced-section">Erro ao buscar os dados do banco de dados.</div>
+                    <div v-else-if="loading" class="alert alert-info spaced-section">Carregando...</div>
+                    <div v-else-if="Object.keys(tabelas).length === 0" class="alert alert-warning spaced-section">Nenhuma tabela encontrada.</div>
 
-                        if (data.timestamp) {
-                            $('#last-update-time').text(data.timestamp);
-                            $('#last-update').show();
-                        } else {
-                            $('#last-update').hide();
-                        }
-                        let html = `
-                            <table class="table table-striped" id="service-table">
-                                <thead>
-                                    <tr>
-                                        <th>Tabela</th>
-                                        <th>Quantidade de Registros</th>
-                                        <th>Status</th>
-                                    </tr>
-                                </thead>
-                                <tbody>`;
-                        const labels = {
-                            "lock_no_banco": "LOCK NO BANCO",
-                            "multas_mensagens_erro_nao_tratadas": "multas mensagensErro nao tratadas",
-                            "multas_mensagens_erro_tratadas": "multas mensagensErro já tratadas"
-                        };
-                        for (const key in data.results) {
-                            html += `
+                    <div v-else class="table-responsive spaced-section">
+                        <table class="table table-striped">
+                            <thead>
                                 <tr>
-                                    <td>${labels[key] || key}</td>
-                                    <td>${data.results[key].count}</td>
-                                    <td>${data.results[key].status}</td>
-                                </tr>`;
-                        }
-                        html += `</tbody></table>`;
-                        $('#query').html(html);
-                    } else {
-                        $('#last-update').hide();
+                                    <th>Tabela</th>
+                                    <th>Quantidade de Registros</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr v-for="(info, key) in tabelas" :key="key">
+                                    <td>[[ labels[key] || key ]]</td>
+                                    <td>
+                                        [[ info.count ]]
+                                        <span v-if="info.percentage" class="text-muted">([[ info.percentage ]])</span>
+                                    </td>
+                                    <td>[[ info.status ]]</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <script>
+            new Vue({
+                el: '#app',
+                delimiters: ['[[', ']]'],
+                data: {
+                    tabelas: {},
+                    loading: true,
+                    erro: false,
+                    lastUpdate: "",
+                    theme: 'dark',
+                    logoLight: "{{ url_for('static', filename='images/logo.png') }}",
+                    logoDark: "{{ url_for('static', filename='images/logo.png') }}",
+                    labels: {
+                        "id2": "LabelID2",
+                        "id3": "LabelID3",
+                        "id4": "LabelID4",
+                        "id5": "LabelID5",
+                        "id6": "LabelID6",
+                        "id7": "LabelID7",
+                        "id8": "LabelID8"
                     }
-                }).fail(function() {
-                    $('#loading').hide();
-                    $('#erro').show();
-                    $('#last-update').hide();
-                });   
-            }
-            setInterval(fetchQuery, 30000);  // Atualiza a cada 30 segundos
-            fetchQuery();  // Chama uma vez no início para carregar imediatamente
+                },
+                computed: {
+                    logoSrc() {
+                        return this.theme === 'dark' ? this.logoDark : this.logoLight;
+                    }
+                },
+                methods: {
+                    toggleTheme() {
+                        this.theme = this.theme === 'light' ? 'dark' : 'light';
+                        localStorage.setItem('theme', this.theme);
+                        document.body.className = `${this.theme}-mode`;
+                    },
+                    applyTheme() {
+                        this.theme = localStorage.getItem('theme') || 'dark';
+                        document.body.className = `${this.theme}-mode`;
+                    },
+                    fetchData() {
+                        this.loading = true;
+                        this.erro = false;
+                        axios.get("{{ url_for('queryes.queryes') }}")
+                            .then(response => {
+                                const data = response.data;
+                                if (data && data.data) {
+                                    this.tabelas = data.data;
+                                    this.lastUpdate = data.timestamp || "";
+                                } else {
+                                    this.tabelas = {};
+                                    this.lastUpdate = "";
+                                }
+                                this.loading = false;
+                            })
+                            .catch(() => {
+                                this.erro = true;
+                                this.loading = false;
+                                this.tabelas = {};
+                            });
+                    }
+                },
+                mounted() {
+                    this.applyTheme();
+                    this.fetchData();
+                    setInterval(() => {
+                        this.fetchData();
+                    }, 30000);
+                }
+            });
             </script>
         </body>
         </html>

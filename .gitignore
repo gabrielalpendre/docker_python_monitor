@@ -2,3 +2,5 @@
 /files/
 /logs/
 .env
+/venv/
+venv/

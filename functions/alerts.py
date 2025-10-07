@@ -1,10 +1,13 @@
 import os
 import json
 import requests
+import boto3
+from datetime import datetime
 from dotenv import load_dotenv
 from functions.log import log_message
 
 load_dotenv(override=True)
+PYTHON_ENV = os.getenv('PYTHON_ENV', 'local')
 
 ALERTS_DIR = os.getenv('ALERTS_DIR', 'files/alerts')
 os.makedirs(ALERTS_DIR, exist_ok=True)
@@ -15,7 +18,7 @@ SCHEDULE_FILE = os.path.join(ALERTS_DIR, 'alert_schedules.json')
 def load_alert_config():
     if not os.path.exists(ALERTS_CONFIG_FILE):
         log_message('info', "### Criando arquivo de configuracções de log")
-        save_alert_config(telegram="disabled", teams="disabled")
+        save_alert_config(telegram=False, teams=False)
     try:
         with open(ALERTS_CONFIG_FILE, 'r') as f:
             config = json.load(f)
@@ -28,13 +31,14 @@ def load_alert_config():
 
 def save_alert_config(telegram, teams):
     config = {
-        "telegram": "enabled" if telegram else "disabled", #if telegram true
-        "teams": "enabled" if teams else "disabled" #if teams true
+        "telegram": "enabled" if telegram else "disabled",
+        "teams": "enabled" if teams else "disabled",
+        "timestamp": datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     }
     try:
         with open(ALERTS_CONFIG_FILE, 'w') as f:
             json.dump(config, f, indent=2)
-        log_message('warning', "### Configurações de alerta atualizadas")
+        log_message('warning', "### Configuracoes de alerta atualizadas")
     except Exception as e:
         print(f"Erro ao salvar a configuração: {e}")
         
@@ -50,7 +54,7 @@ def load_alerts_state(type):
         return {}
     except json.JSONDecodeError:
         print(f"Erro ao decodificar o arquivo JSON {ALERTS_FILE}. Criando um novo arquivo.")
-        save_alerts_state(type, {})  # Corrigido: agora passa o `type` e o `state`
+        save_alerts_state(type, {})
         return {}
 
 def save_alerts_state(type, state):
@@ -71,39 +75,45 @@ def save_alert_schedules(tool, schedule_list):
         json.dump(data, f, indent=4)
     return True
 
-def check_send_alert(service_name, current_state, previous_state, server_hostname):
+telegram_miner_chat_id = os.getenv("TELEGRAM_MINER_CHAT_ID")
+telegram_infra_chat_id = os.getenv("TELEGRAM_INFRA_CHAT_ID")
+to_addresses_miner = [os.getenv('MAIL_TO_MINER')]
+to_addresses_infra = [os.getenv('MAIL_TO_INFRA')]
+
+def check_send_alert(service_name, current_state, previous_state, server_hostname, alert_endpoint, alert_from):
     """
     Verifica se houve mudança no current_state do serviço e envia o alerta se necessário.
     A notificação é enviada somente se o estado anterior for diferente do atual.
     """
-    if not os.path.exists(ALERTS_CONFIG_FILE):
-        save_alert_config(telegram="disabled", teams="disabled")
-
-    with open(ALERTS_CONFIG_FILE, "r") as file:
-        alert_config = json.load(file)
-
-    telegram = alert_config.get("telegram")
-    teams = alert_config.get("teams")
-
-    previous_status = previous_state.get(service_name, "on")
-
-    if previous_status != current_state:
-        message = f"\n{current_state} {service_name}\nHostname: {server_hostname}"
-
-        if telegram == "enabled":
-            send_telegram_alert(message)
-
-        if teams == "enabled":
-            send_teams_alert(current_state, service_name, message)
-
-def send_telegram_alert(message):
-    TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
-    CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
-    url = f"https://api.telegram.org/bot{TOKEN}/sendMessage"
-    payload = {"chat_id": CHAT_ID, "text": message}
-    response = requests.post(url, json=payload)
-    log_message(f'warning',"### Enviando alerta do telegram")
-    return response.json()
+    message = f"\n{current_state} {service_name}\n{server_hostname}"
+    mail_subject = f"Alerta {service_name}"
+    mail_body = f"{current_state} {service_name}"
+    previous_status = previous_state.get(service_name)
+    if previous_status != current_state and alert_from == 'function':
+        if PYTHON_ENV != 'debug':
+            if alert_endpoint == "telegram_miner":
+                send_telegram_alert(message, telegram_miner_chat_id)
+                send_email_alert(mail_subject, mail_body, to_addresses_miner)
+            else:
+                current_alert_config = load_alert_config()
+                telegram = current_alert_config.get("telegram")
+                teams = current_alert_config.get("teams")
+                if telegram == "enabled":
+                    send_telegram_alert(message, telegram_infra_chat_id)
+                if teams == "enabled":
+                    send_teams_alert(current_state, service_name, message)
+        else:
+            print(f"[DEBUG] - Mensagem do alerta: {message}")
+    elif alert_from != 'function':
+        if alert_endpoint == "telegram_miner":
+            response = send_telegram_alert(message, telegram_miner_chat_id)
+        elif alert_endpoint == "telegram_infra":
+            response = send_telegram_alert(message, telegram_infra_chat_id)
+        elif alert_endpoint == "mail_miner":
+            response = send_email_alert(mail_subject, mail_body, to_addresses_miner)
+        elif alert_endpoint == "mail_infra":
+            response = send_email_alert(mail_subject, mail_body, to_addresses_infra)
+        return response
 
 def send_teams_alert(current_state, service_name, message):
     webhook_url = os.getenv("TEAMS_WEBHOOK_URL")
@@ -119,3 +129,42 @@ def send_teams_alert(current_state, service_name, message):
     log_message("warning", "### Enviando alerta para o Microsoft Teams")
     return response.json()
 
+def send_telegram_alert(message, chat_id):
+    TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
+    url = f"https://api.telegram.org/bot{TOKEN}/sendMessage"
+    payload = {"chat_id": chat_id, "text": message}
+    response = requests.post(url, json=payload)
+    log_message(f'warning',"### Enviando alerta do telegram {chat_id}")
+    data = response.json()
+    
+    return {
+        "message_id": data.get("result", {}).get("message_id"),
+        "chat_id": data.get("result", {}).get("chat", {}).get("id"),
+        "chat_title": data.get("result", {}).get("chat", {}).get("title"),
+        "text": data.get("result", {}).get("text")
+    }
+
+def send_email_alert(subject, body, to_addresses):
+    mail_from = os.getenv("MAIL_FROM")
+    ses = boto3.client(
+        'ses',
+        region_name='us-east-1',
+        aws_access_key_id=os.getenv('AWS_ACCESS_KEY_ID'),
+        aws_secret_access_key=os.getenv('AWS_SECRET_ACCESS_KEY')
+    )
+    response = ses.send_email(
+        Source=mail_from,
+        Destination={'ToAddresses': to_addresses},
+        Message={
+            'Subject': {'Data': subject},
+            'Body': {'Text': {'Data': body}}
+        }
+    )
+    log_message("warning", "### Enviando alerta para o e-mail")
+
+    return {
+        "message_id": response.get("MessageId"),
+        "chat_id": to_addresses[0] if isinstance(to_addresses, list) else to_addresses,
+        "chat_title": subject,
+        "text": body
+    }

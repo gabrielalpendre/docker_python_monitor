@@ -1,22 +1,20 @@
-version: '3.3'
 services:
   docker:
     build:
       context: .
-      dockerfile: Dockerfile
-    env_file: .env-prod
+      dockerfile: Dockerfile.local
+    env_file: .env
     ports:
-      - "4005:4005"
+      - "5005:4005"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
-      - ./files:/monitor/files
-      - ./logs:/monitor/logs
+      - /proc/loadavg:/host_proc_loadavg:ro
+      - /proc/uptime:/host_proc_uptime:ro
+      - ./:/monitor
     environment:
-      - DOCKER_HOST=unix:///var/run/docker.sock
       - SERVER_HOSTNAME=${SERVER_HOSTNAME}
       - SERVER_IP=${SERVER_IP}
       - PREFIX=${PREFIX}
-      - VERSAO=${VERSAO}
     deploy:
       resources:
         limits:
