@@ -32,8 +32,9 @@ def incidentes():
                 <img :src="logoSrc" alt="GABRL" height="25" class="me-3" />
             </div>
             <div class="buttons d-flex gap-2">
-                <a href="{{ url_for('incidentes.incidentes') }}" class="btn btn-gray btn-refresh">Refresh</a>
-                <a href="{{ url_for('home.home') }}" class="btn btn-gray">Home</a>
+                <a href="{{ url_for('incidentes.incidentes') }}" class="btn btn-secondary btn-sm btn-refresh">Refresh</a>
+                <a href="{{ url_for('reports.reports') }}" class="btn btn-secondary btn-sm">Relatórios</a>
+                <a href="{{ url_for('home.home') }}" class="btn btn-secondary btn-sm">Home</a>
                 <button class="btn btn-secondary ms-3" @click="toggleTheme" title="Alternar tema">
                     <i :class="theme === 'dark' ? 'bi bi-sun' : 'bi bi-moon'"></i>
                 </button>

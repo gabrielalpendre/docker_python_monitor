@@ -64,6 +64,7 @@ def admin():
                 <div class="text-end fw-bold">{{ VERSAO }}</div>
                 <a href="{{ url_for('logs.logs') }}" class="btn btn-secondary btn-sm">Service Logs</a>
                 <a href="{{ url_for('incidentes.incidentes') }}" class="btn btn-secondary btn-sm">Incidentes</a>
+                <a href="{{ url_for('reports.reports') }}" class="btn btn-secondary btn-sm">Relatórios</a>
                 {% if FLASK_PREFIX != '/homol' %}
                     <a href="{{ url_for('filas.filas') }}" class="btn btn-secondary btn-sm">Filas AWS</a>
                     <a href="{{ url_for('tabelas.tabelas') }}" class="btn btn-secondary btn-sm">Banco de Dados</a>

@@ -1,6 +1,7 @@
 from pages.admin import bp_admin
 from pages.logs import bp_logs
 from pages.home import bp_home
+from pages.reports import bp_reports
 from pages.incidentes import bp_incidentes
 from backend.services import bp_stats
 from backend.services import bp_stats_status
@@ -37,6 +38,7 @@ def start_flask():
     app.register_blueprint(bp_set_interval)
     app.register_blueprint(bp_logs)
     app.register_blueprint(bp_home)
+    app.register_blueprint(bp_reports)
     app.register_blueprint(bp_incidentes)
     app.register_blueprint(bp_stats)
     app.register_blueprint(bp_stats_status)

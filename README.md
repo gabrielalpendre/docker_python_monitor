@@ -65,13 +65,21 @@ Os alertas sao enviados para as ferramentas Telegram, Teams e Email com base em 
 
 ### Pagina Home:
 
-Acesse https://localhost:4005/
+Acesse http://localhost:4005/
 
 * **Verde**: Servico em execucao.
 * **Vermelho**: Servico parado.
 
 ![home](prints/home.png)
 
+### Pagina Reports:
+
+Acesse http://localhost:4005/reports
+
+* **Services**: Grafico de Load.
+* **Server**: Graficos de uso de CPU e Memoria.
+
+![reports](prints/reports.png)
 
 ### Pagina Admin: 
 

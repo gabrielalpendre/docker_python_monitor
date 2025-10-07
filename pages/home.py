@@ -31,10 +31,11 @@ def home():
                     <div class="fs-5">[[ lastUpdate ]]</div>
                 </div>
                 <div class="buttons d-flexgap-2">
-                    <a href="{{ url_for('incidentes.incidentes') }}" class="btn btn-gray">Histórico de incidentes</a>
+                    <a href="{{ url_for('incidentes.incidentes') }}" class="btn btn-secondary btn-sm">Histórico de incidentes</a>
+                    <a href="{{ url_for('reports.reports') }}" class="btn btn-secondary btn-sm">Relatórios</a>
                     {% if FLASK_PREFIX != '/homol' %}
-                        <a href="{{ url_for('filas.filas') }}" class="btn btn-gray">Filas AWS</a>
-                        <a href="{{ url_for('tabelas.tabelas') }}" class="btn btn-gray">Banco de Dados</a>
+                        <a href="{{ url_for('filas.filas') }}" class="btn btn-secondary btn-sm">Filas AWS</a>
+                        <a href="{{ url_for('tabelas.tabelas') }}" class="btn btn-secondary btn-sm">Banco de Dados</a>
                     {% endif %}
                     <button class="btn btn-secondary ms-3" @click="toggleTheme" title="Alternar tema">
                         <i :class="theme === 'dark' ? 'bi bi-sun' : 'bi bi-moon'"></i>

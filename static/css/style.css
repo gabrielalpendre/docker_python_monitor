@@ -224,3 +224,28 @@ table {
         font-size: 0.85rem;
     }
 }
+.chart-flex {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 20px;
+    justify-content: space-between;
+}
+
+.chart-box {
+    flex: 1 1 48%;  /* cada gráfico ocupa metade do espaço disponível */
+    min-width: 300px;
+    max-width: 100%;
+    /* altura do container, o canvas se ajusta via aspectRatio */
+}
+
+.chart-box canvas {
+    width: 100% !important;
+    height: auto !important;
+}
+
+/* Responsivo: telas pequenas empilham os gráficos */
+@media (max-width: 768px) {
+    .chart-box {
+        flex: 1 1 100%;
+    }
+}

@@ -34,10 +34,11 @@ if FLASK_PREFIX != '/homol':
                         <div class="fs-5">[[ lastUpdate ]]</div>
                     </div>
                     <div class="buttons d-flex gap-2">
-                        <a href="{{ url_for('incidentes.incidentes') }}" class="btn btn-gray">Histórico de incidentes</a>
-                        <a href="{{ url_for('filas.filas') }}" class="btn btn-gray">Filas AWS</a>
-                        <a href="{{ url_for('home.home') }}" class="btn btn-gray">Home</a>
-                        <button class="btn btn-secondary ms-3" @click="toggleTheme" title="Alternar tema">
+                        <a href="{{ url_for('incidentes.incidentes') }}" class="btn btn-secondary btn-sm">Histórico de incidentes</a>
+                        <a href="{{ url_for('reports.reports') }}" class="btn btn-secondary btn-sm">Relatórios</a>
+                        <a href="{{ url_for('filas.filas') }}" class="btn btn-secondary btn-sm">Filas AWS</a>
+                        <a href="{{ url_for('home.home') }}" class="btn btn-secondary btn-sm">Home</a>
+                        <button class="btn btn-secondary ms-3" @click="btn-gray" title="Alternar tema">
                             <i :class="theme === 'dark' ? 'bi bi-sun' : 'bi bi-moon'"></i>
                         </button>
                     </div>
