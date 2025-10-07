@@ -37,6 +37,7 @@ def admin():
         <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet" />
         <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
         <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='images/favicon.ico') }}">
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
         <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/toastify-js/src/toastify.min.css">
         <script src="https://cdn.jsdelivr.net/npm/toastify-js"></script>
         <style>
@@ -53,7 +54,7 @@ def admin():
             body.light .container-section { --section-bg: #e0e0e0; }
         </style>
     </head>
-    <body class="dark">
+    <body>
         <!-- Header -->
         <nav class="navbar navbar-light shadow-sm px-4 flex justify-between items-center" style="height:60px;">
             <div class="d-flex align-items-center">
@@ -68,7 +69,9 @@ def admin():
                     <a href="{{ url_for('tabelas.tabelas') }}" class="btn btn-secondary btn-sm">Banco de Dados</a>
                 {% endif %}
                 <a href="{{ url_for('home.home') }}" class="btn btn-secondary btn-sm">Home</a>
-                <button id="toggleTheme" class="btn btn-outline-primary btn-sm">Modo Light/Dark</button>
+                <button id="toggleTheme" class="btn btn-secondary ms-3" title="Alternar tema">
+                    <i id="themeIcon" class="bi"></i>
+                </button>
             </div>
         </nav>
 
@@ -119,19 +122,21 @@ def admin():
         </div>
 
         <script>
-            // Dark/Light Mode
             const body = document.body;
             const toggleBtn = document.getElementById('toggleTheme');
+            const themeIcon = document.getElementById('themeIcon');
+            function applyTheme(theme) {
+                body.classList.remove('dark', 'light');
+                body.classList.add(theme);
+                localStorage.setItem('theme', theme);
+                themeIcon.className = theme === 'dark' ? 'bi bi-sun' : 'bi bi-moon';
+            }
+            const savedTheme = localStorage.getItem('theme') || 'dark';
+            applyTheme(savedTheme);
             toggleBtn.addEventListener('click', () => {
-                if (body.classList.contains('dark')) {
-                    body.classList.remove('dark');
-                    body.classList.add('light');
-                } else {
-                    body.classList.remove('light');
-                    body.classList.add('dark');
-                }
+                const newTheme = body.classList.contains('dark') ? 'light' : 'dark';
+                applyTheme(newTheme);
             });
-
             // Form listeners
             document.addEventListener('DOMContentLoaded', () => {
                 setupFormListeners();
