@@ -231,16 +231,24 @@ table {
     justify-content: space-between;
 }
 
+/* === Limite de tamanho dos charts === */
 .chart-box {
-    flex: 1 1 48%;  /* cada gráfico ocupa metade do espaço disponível */
+    flex: 1 1 48%;
     min-width: 300px;
-    max-width: 100%;
-    /* altura do container, o canvas se ajusta via aspectRatio */
+    max-width: 600px;   /* limite máximo de largura */
+    max-height: 350px;  /* limite máximo de altura */
+    background-color: var(--chart-bg); /* cor do fundo do gráfico via tema */
+    border-radius: 8px;
+    padding: 10px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
 }
 
 .chart-box canvas {
     width: 100% !important;
-    height: auto !important;
+    height: 100% !important;  /* ocupa toda altura da div limitada */
 }
 
 /* Responsivo: telas pequenas empilham os gráficos */

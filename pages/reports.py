@@ -1,3 +1,4 @@
+from functions.services import get_server_info
 from flask import Blueprint, render_template_string, jsonify, request
 import os
 import json
@@ -9,6 +10,7 @@ REPORTS_DIR = os.getenv('REPORTS_DIR', 'files/reports')
 
 @bp_reports.route(f'{FLASK_PREFIX}/reports', methods=['GET'])
 def reports():
+    server_hostname, _ = get_server_info()
     available = {'services': set(), 'server': set()}
     for f in os.listdir(REPORTS_DIR):
         if f.endswith('_services_report.json'):
@@ -21,243 +23,454 @@ def reports():
     available_list = {k: sorted(list(v), reverse=True) for k, v in available.items()}
 
     return render_template_string(r"""
-    <!DOCTYPE html>
-    <html lang="pt-br">
-    <head>
-        <title>Histórico de Erros</title>
-        <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet" />
-        <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet">
-        <script src="https://cdn.jsdelivr.net/npm/vue@2.6.14/dist/vue.min.js"></script>
-        <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
-        <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='images/favicon.ico') }}">
-        <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-        <style>
-            body.dark { background-color: #121212; color: #eee; }
-            body.light { background-color: #f5f5f5; color: #333; }
-            .container-section { 
-                background-color: var(--section-bg);
-                padding: 20px;
-                border-radius: 8px;
-                transition: background-color 0.3s;
-                margin-bottom: 30px;
-            }
-            body.dark .container-section { --section-bg: #2b2b2b; }
-            body.light .container-section { --section-bg: #e0e0e0; }
-        </style>
-    </head>
-    <body>
-        <nav class="navbar navbar-light shadow-sm px-4" style="height:60px;">
-            <div class="d-flex align-items-center gap-2">
-                <img src="{{ url_for('static', filename='images/logo.png') }}" alt="Logo" height="25" />
-            </div>
-            <div class="buttons d-flex gap-2">
-                <a href="{{ url_for('incidentes.incidentes') }}" class="btn btn-secondary btn-sm">Histórico de incidentes</a>
-                <a href="{{ url_for('home.home') }}" class="btn btn-secondary btn-sm">Home</a>
-                <button id="toggleTheme" class="btn btn-secondary ms-3" title="Alternar tema">
-                    <i id="themeIcon" class="bi"></i>
-                </button>
-            </div>
-        </nav>
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <title>Relatorios</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet" />
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/vue@2.6.14/dist/vue.min.js"></script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='images/favicon.ico') }}">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body.dark { background-color: #121212; color: #eee; }
+        body.light { background-color: #f5f5f5; color: #333; }
+        .container-section { 
+            background-color: var(--section-bg);
+            padding: 20px;
+            border-radius: 8px;
+            transition: background-color 0.3s;
+            margin-bottom: 30px;
+        }
+        body.dark .container-section { --section-bg: #2b2b2b; }
+        body.light .container-section { --section-bg: #e0e0e0; }
+        .chart-box { margin-bottom: 30px; }
+        canvas { height: 250px !important; } 
+    </style>
+</head>
+<body>
+<nav class="navbar navbar-light shadow-sm px-4" style="height:60px;">
+    <div class="d-flex align-items-center gap-2">
+        <img src="{{ url_for('static', filename='images/logo.png') }}" alt="Logo" height="25" />
+    </div>
+    <div class="buttons d-flex gap-2">
+        <a href="{{ url_for('incidentes.incidentes') }}" class="btn btn-secondary btn-sm">Histórico de incidentes</a>
+        <a href="{{ url_for('home.home') }}" class="btn btn-secondary btn-sm">Home</a>
+        <button id="toggleTheme" class="btn btn-secondary ms-3" title="Alternar tema">
+            <i id="themeIcon" class="bi"></i>
+        </button>
+    </div>
+</nav>
 
-        <!-- Formulário -->
-        <div class="container mt-4 container-section">
-            <h4>Gerar Relatório</h4>
-            <div class="row mb-3">
-                <div class="col-md-2">
-                    <label for="reportType" class="form-label">Tipo de Relatório:</label>
-                    <select id="reportType" class="form-select form-select-sm">
-                        <option value="services">Serviços</option>
-                        <option value="server">Servidor</option>
-                    </select>
-                </div>
-                <div class="col-md-2">
-                    <label for="reportDate" class="form-label">Data:</label>
-                    <select id="reportDate" class="form-select form-select-sm"></select>
-                </div>
-                <div class="col-md-2">
-                    <label for="reportService" class="form-label">Serviço:</label>
-                    <select id="reportService" class="form-select form-select-sm">
-                        <option value="all">Todos</option>
-                    </select>
-                </div>
-                <div class="col-md-2">
-                    <label for="startHour" class="form-label">Hora Início:</label>
-                    <input type="time" id="startHour" class="form-control form-control-sm">
-                </div>
-                <div class="col-md-2">
-                    <label for="endHour" class="form-label">Hora Fim:</label>
-                    <input type="time" id="endHour" class="form-control form-control-sm">
-                </div>
-                <div class="col-md-2 d-flex align-items-end">
-                    <button id="generateBtn" class="btn btn-primary btn-sm w-100">Gerar</button>
-                </div>
+<div class="container mt-4 container-section">
+    <h4>Gerar Relatório</h4>
+    <div class="row mb-3">
+        <div class="col-md-2">
+            <label for="reportType" class="form-label">Tipo de Relatório:</label>
+            <select id="reportType" class="form-select form-select-sm">
+                <option value="services">Serviços</option>
+                <option value="server">Servidor</option>
+            </select>
+        </div>
+        <div class="col-md-2">
+            <label for="reportDate" class="form-label">Data:</label>
+            <select id="reportDate" class="form-select form-select-sm"></select>
+        </div>
+        <div class="col-md-2">
+            <label for="reportStack" class="form-label">Stack:</label>
+            <select id="reportStack" class="form-select form-select-sm">
+                <option value="all">Todas</option>
+            </select>
+        </div>
+        <div class="col-md-2">
+            <label for="startHour" class="form-label">Hora Início:</label>
+            <input type="time" id="startHour" class="form-control form-control-sm">
+        </div>
+        <div class="col-md-2">
+            <label for="endHour" class="form-label">Hora Fim:</label>
+            <input type="time" id="endHour" class="form-control form-control-sm">
+        </div>
+        <div class="col-md-1 d-flex align-items-end">
+            <button id="generateBtn" class="btn btn-primary btn-sm w-100">Gerar</button>
+        </div>
+        <div class="col-md-1 d-flex align-items-end">
+            <div class="form-check form-switch">
+                <input class="form-check-input" type="checkbox" id="autoRefresh">
+                <label class="form-check-label" for="autoRefresh">Auto Refresh</label>
             </div>
         </div>
+    </div>
+</div>
 
-        <!-- Gráficos -->
-        <div class="container mb-4">
-            <div id="chartContainer" class="chart-flex" style="display:none;">
-                <div class="chart-box">
-                    <canvas id="cpuChart"></canvas>
-                </div>
-                <div class="chart-box">
-                    <canvas id="memChart"></canvas>
-                </div>
-            </div>
-        </div>
+<div class="container mb-4">
+    <div id="chartContainer" class="chart-flex" style="display:none;"></div>
+</div>
 
-        <script>
-        const available = {{ available_list | tojson }};
-        const reportType = document.getElementById('reportType');
-        const reportDate = document.getElementById('reportDate');
-        const reportService = document.getElementById('reportService');
-        const startHour = document.getElementById('startHour');
-        const endHour = document.getElementById('endHour');
+<script>
+const available = {{ available_list | tojson }};
+const reportType = document.getElementById('reportType');
+const reportDate = document.getElementById('reportDate');
+const reportStack = document.getElementById('reportStack');
+const startHour = document.getElementById('startHour');
+const endHour = document.getElementById('endHour');
+const autoRefreshCheckbox = document.getElementById('autoRefresh');
 
-        const cpuChartCanvas = document.getElementById('cpuChart');
-        const memChartCanvas = document.getElementById('memChart');
-        let cpuChart, memChart;
+let cpuChart, memChart;
+let autoRefreshInterval = null;
 
-        function populateDates(type) {
-            reportDate.innerHTML = '';
-            (available[type] || []).forEach(date => {
-                const opt = document.createElement('option');
-                opt.value = date;
-                opt.textContent = date;
-                reportDate.appendChild(opt);
-            });
-            populateServices(type);
-        }
+function populateDates(type) {
+    reportDate.innerHTML = '';
+    (available[type] || []).forEach(date => {
+        const opt = document.createElement('option');
+        opt.value = date;
+        opt.textContent = date;
+        reportDate.appendChild(opt);
+    });
+    populateStacks(type);
+}
 
-        function populateServices(type){
-            if(type === 'services'){
-                reportService.innerHTML = '<option value="all">Todos</option>';
-                const date = reportDate.value;
-                if(date){
-                    fetch(`/reports/data?file=${date}_services_report.json`)
-                        .then(r=>r.json())
-                        .then(data=>{
-                            reportService.innerHTML = '<option value="all">Todos</option>'; // <-- limpar aqui!
-                            const services = [...new Set(data.flatMap(e=>e.data.map(d=>d.Service)))];
-                            services.forEach(s=>{
-                                const opt = document.createElement('option');
-                                opt.value = s;
-                                opt.textContent = s;
-                                reportService.appendChild(opt);
-                            });
-                        });
-                }
-                reportService.parentElement.style.display='block';
-            } else {
-                reportService.parentElement.style.display='none';
-            }
-        }
-
-        populateDates('services');
-        reportType.addEventListener('change', ()=>populateDates(reportType.value));
-        reportDate.addEventListener('change', ()=>populateServices(reportType.value));
-
-        // Tema
-        const body = document.body;
-        const themeIcon = document.getElementById('themeIcon');
-        function applyTheme(theme) {
-            body.classList.remove('dark','light');
-            body.classList.add(theme);
-            localStorage.setItem('theme', theme);
-            themeIcon.className = theme === 'dark' ? 'bi bi-sun' : 'bi bi-moon';
-        }
-        applyTheme(localStorage.getItem('theme') || 'dark');
-        document.getElementById('toggleTheme').addEventListener('click', () => {
-            const newTheme = body.classList.contains('dark') ? 'light' : 'dark';
-            applyTheme(newTheme);
-        });
-        startHour.addEventListener('input', () => {
-            if(startHour.value){
-                const [h,m] = startHour.value.split(':').map(Number);
-                endHour.min = `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`;
-                let newH = h+1; if(newH>23) newH=23;
-                endHour.value = `${String(newH).padStart(2,'0')}:${String(m).padStart(2,'0')}`;
-            } else { endHour.min="00:00"; endHour.value=""; }
-        });
-
-        document.getElementById('generateBtn').addEventListener('click', generateReport);
-
-        function generateReport() {
-            const type = reportType.value;
-            const date = reportDate.value;
-            const serviceSel = reportService.value;
-            const start = startHour.value;
-            const end = endHour.value;
-            if(!date) return alert('Selecione uma data existente.');
-            if(!start||!end) return alert('Informe o intervalo de horas.');
-            const [startH,startM]=start.split(':').map(Number);
-            const [endH,endM]=end.split(':').map(Number);
-            if(endH*60+endM<=startH*60+startM) return alert('A hora final deve ser maior que a inicial.');
-            const file = `${date}_${type}_report.json`;
-
-            fetch(`/reports/data?file=${file}`)
-                .then(r=>r.json())
-                .then(data=>{
-                    if(data.error) return alert(data.error);
-                    document.getElementById('chartContainer').style.display='flex';
-
-                    const timestamps = data.map(e=>e.timestamp.slice(11,16));
-
-                    if(type==='server'){
-                        cpuChartCanvas.style.display='block';
-                        memChartCanvas.style.display='none';
-                        const values = data.map(e=>{
-                            const val=e.data[0]?.Actual||0;
-                            return parseFloat(val.replace(/[^\d.]/g,''))||0;
-                        });
-                        renderChart('cpuChart','Server Actual',timestamps,{'Load do Server':values});
-                    } else {
-                        cpuChartCanvas.style.display='block';
-                        memChartCanvas.style.display='block';
-                        const services = serviceSel==='all' ? [...new Set(data.flatMap(e=>e.data.map(d=>d.Service)))] : [serviceSel];
-                        const cpuData={}, memData={};
-                        services.forEach(s=>{cpuData[s]=[]; memData[s]=[];});
-                        data.forEach(entry=>{
-                            entry.data.forEach(d=>{
-                                if(services.includes(d.Service)){
-                                    const cpu=parseFloat(d["CPU Usage"]?.replace(/[^\d.]/g,'')||0);
-                                    const mem=parseFloat(d["Memory Usage"]?.replace(/[^\d.]/g,'')||0);
-                                    cpuData[d.Service].push(cpu);
-                                    memData[d.Service].push(mem);
-                                }
-                            });
-                        });
-                        renderChart('cpuChart','Uso de CPU (%)',timestamps,cpuData);
-                        renderChart('memChart','Uso de Memória (MiB)',timestamps,memData);
-                    }
+function populateStacks(type){
+    reportStack.innerHTML = '<option value="all">Todas</option>';
+    if(type==='services'){
+        const date = reportDate.value;
+        if(!date) return;
+        fetch(`/reports/data?file=${date}_services_report.json`)
+            .then(r=>r.json())
+            .then(data=>{
+                const stacks = [...new Set(data.flatMap(e=>e.data.map(d=>{
+                    const parts = d.Service.split('_');
+                    return parts.slice(0, -1).join('_');
+                })))];
+                reportStack.innerHTML = '<option value="all">Todas</option>';
+                stacks.forEach(s=>{
+                    const opt = document.createElement('option');
+                    opt.value = s;
+                    opt.textContent = s;
+                    reportStack.appendChild(opt);
                 });
-        }
+            });
+        reportStack.parentElement.style.display='block';
+    } else {
+        reportStack.parentElement.style.display='none';
+    }
+}
 
-        // Pré-carregar último relatório services últimos 30 minutos
-        window.addEventListener('load', ()=>{
+populateDates('services');
+reportType.addEventListener('change', ()=>populateDates(reportType.value));
+reportDate.addEventListener('change', ()=>populateStacks(reportType.value));
+
+const body = document.body;
+const themeIcon = document.getElementById('themeIcon');
+
+function applyTheme(theme) {
+    body.classList.remove('dark','light');
+    body.classList.add(theme);
+    localStorage.setItem('theme', theme);
+    themeIcon.className = theme === 'dark' ? 'bi bi-sun' : 'bi bi-moon';
+}
+
+function refreshChartColors(chart) {
+    const bodyTheme = body.classList.contains('dark') ? 'dark' : 'light';
+    const axisColor = bodyTheme === 'dark' ? '#eee' : '#333';
+    const gridColor = bodyTheme === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)';
+    const chartBg = bodyTheme === 'dark' ? 'rgba(40,40,40,0.8)' : 'rgba(255,255,255,0.95)';
+
+    chart.options.scales.x.ticks.color = axisColor;
+    chart.options.scales.x.grid.color = gridColor;
+    chart.options.scales.y.ticks.color = axisColor;
+    chart.options.scales.y.grid.color = gridColor;
+    chart.options.plugins.title.color = axisColor;
+    chart.options.plugins.legend.labels.color = axisColor;
+
+    chart.update();
+}
+
+applyTheme(localStorage.getItem('theme') || 'dark');
+document.getElementById('toggleTheme').addEventListener('click', () => {
+    const newTheme = body.classList.contains('dark') ? 'light' : 'dark';
+    applyTheme(newTheme);
+    if(cpuChart) refreshChartColors(cpuChart);
+    if(memChart) refreshChartColors(memChart);
+});
+
+startHour.addEventListener('input', () => {
+    if(startHour.value){
+        const [h,m] = startHour.value.split(':').map(Number);
+        endHour.min = `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`;
+        let newH = h+1; if(newH>23) newH=23;
+        endHour.value = `${String(newH).padStart(2,'0')}:${String(m).padStart(2,'0')}`;
+    } else { endHour.min="00:00"; endHour.value=""; }
+});
+
+document.getElementById('generateBtn').addEventListener('click', generateReport);
+
+autoRefreshCheckbox.addEventListener('change', ()=>{
+    if(autoRefreshCheckbox.checked){
+        // Atualiza intervalo para últimos 5 minutos
+        const updateLast5Min = ()=>{
             const now = new Date();
-            const past = new Date(now.getTime() - 30*60000); // 30 minutos atrás
-            startHour.value = `${String(past.getHours()).padStart(2,'0')}:${String(past.getMinutes()).padStart(2,'0')}`;
-            endHour.value = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
-            reportType.value = 'services';
-            reportDate.value = (available['services'][0] || '');
-            populateServices('services');
-            setTimeout(generateReport, 500); // dá tempo de popular serviços antes
+            const past = new Date(now.getTime()-5*60000);
+            startHour.value=`${String(past.getHours()).padStart(2,'0')}:${String(past.getMinutes()).padStart(2,'0')}`;
+            endHour.value=`${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
+        };
+        updateLast5Min();
+        generateReport(); // Atualiza imediatamente
+        if(autoRefreshInterval) clearInterval(autoRefreshInterval);
+        autoRefreshInterval = setInterval(()=>{
+            updateLast5Min(); // Ajusta formulário
+            generateReport(); // Atualiza gráfico
+        }, 60000);
+    } else {
+        if(autoRefreshInterval) clearInterval(autoRefreshInterval);
+    }
+});
+
+
+function generateReport() {
+    const type = reportType.value;
+    const date = reportDate.value;
+    const stackSel = reportStack.value;
+    const start = startHour.value;
+    const end = endHour.value;
+
+    if(!date) return alert('Selecione uma data existente.');
+    if(!start||!end) return alert('Informe o intervalo de horas.');
+
+    const [startH,startM]=start.split(':').map(Number);
+    const [endH,endM]=end.split(':').map(Number);
+    if(endH*60+endM<=startH*60+startM) return alert('A hora final deve ser maior que a inicial.');
+
+    const file = `${date}_${type}_report.json`;
+    fetch(`/reports/data?file=${file}`)
+        .then(r=>r.json())
+        .then(rawData=>{
+            if(rawData.error) return alert(rawData.error);
+
+            const chartContainer = document.getElementById('chartContainer');
+            chartContainer.innerHTML=''; 
+            chartContainer.style.display='flex';
+
+            // Filtra JSON pelo intervalo do formulário
+            const filteredData = rawData.filter(e=>{
+                const [h,m] = e.timestamp.slice(11,16).split(':').map(Number);
+                const total = h*60+m;
+                return total >= startH*60+startM && total <= endH*60+endM;
+            });
+
+            if(filteredData.length===0) return alert('Nenhum dado encontrado no intervalo selecionado.');
+
+            // Gera timestamps com preenchimento de lacunas >5min
+            const timestamps = [];
+            const dataMap = {};
+            filteredData.forEach(e=>{
+                const t = e.timestamp.slice(11,16);
+                dataMap[t] = e.data;
+            });
+
+            const sortedTimes = Object.keys(dataMap).sort();
+            let lastTime = startH*60+startM-5;
+            sortedTimes.forEach(t=>{
+                const [h,m] = t.split(':').map(Number);
+                const current = h*60+m;
+                let diff = current - lastTime;
+                while(diff>5){
+                    lastTime += 5;
+                    const lh = Math.floor(lastTime/60);
+                    const lm = lastTime%60;
+                    const ts = `${String(lh).padStart(2,'0')}:${String(lm).padStart(2,'0')}`;
+                    timestamps.push(ts);
+                    dataMap[ts]=[];
+                    diff = current - lastTime;
+                }
+                timestamps.push(t);
+                lastTime=current;
+            });
+
+            if(type==='server'){
+                const cpuCanvasDiv = document.createElement('div');
+                cpuCanvasDiv.className='chart-box';
+                const cpuCanvas = document.createElement('canvas');
+                cpuCanvas.id='cpuChart';
+                cpuCanvasDiv.appendChild(cpuCanvas);
+                chartContainer.appendChild(cpuCanvasDiv);
+
+                const values = timestamps.map(t=>parseFloat(dataMap[t]?.[0]?.Actual?.replace(/[^\d.]/g,'')||0));
+                const dataset = { "{{ server_hostname }}": values };
+                renderChart('cpuChart','Server Load (Actual)',timestamps,dataset,true);
+            } else {
+                const stacks = [...new Set(filteredData.flatMap(e=>e.data.map(d=>{
+                    return d.Service.split('_').slice(0,-1).join('_');
+                })))];
+
+                stacks.forEach(stack=>{
+                    if(stackSel!=='all' && stackSel!==stack) return;
+
+                    const cpuDiv = document.createElement('div');
+                    cpuDiv.className='chart-box';
+                    const cpuCanvas = document.createElement('canvas');
+                    cpuCanvas.id=`cpuChart_${stack}`;
+                    cpuDiv.appendChild(cpuCanvas);
+
+                    const memDiv = document.createElement('div');
+                    memDiv.className='chart-box';
+                    const memCanvas = document.createElement('canvas');
+                    memCanvas.id=`memChart_${stack}`;
+                    memDiv.appendChild(memCanvas);
+
+                    chartContainer.appendChild(cpuDiv);
+                    chartContainer.appendChild(memDiv);
+
+                    const cpuData={}, memData={};
+                    const services = [...new Set(filteredData.flatMap(e=>e.data.filter(d=>{
+                        return d.Service.split('_').slice(0,-1).join('_')===stack;
+                    }).map(d=>d.Service)))];
+
+                    services.forEach(s=>{
+                        cpuData[s]={};
+                        memData[s]={};
+                    });
+
+                    timestamps.forEach(ts=>{
+                        filteredData.forEach(e=>{
+                            if(e.timestamp.slice(11,16)===ts){
+                                e.data.forEach(d=>{
+                                    const sName = d.Service.split('_').slice(0,-1).join('_');
+                                    if(sName!==stack) return;
+                                    cpuData[d.Service][ts]=parseFloat(d["CPU Usage"]?.replace(/[^\d.]/g,'')||0);
+                                    memData[d.Service][ts]=parseFloat(d["Memory Usage"]?.replace(/[^\d.]/g,'')||0);
+                                });
+                            }
+                        });
+                        services.forEach(s=>{
+                            if(cpuData[s][ts]===undefined) cpuData[s][ts]=0;
+                            if(memData[s][ts]===undefined) memData[s][ts]=0;
+                        });
+                    });
+
+                    const cpuFilled={}, memFilled={};
+                    services.forEach(s=>{
+                        cpuFilled[s]=timestamps.map(t=>cpuData[s][t]);
+                        memFilled[s]=timestamps.map(t=>memData[s][t]);
+                    });
+
+                    renderChart(cpuCanvas.id,'Uso de CPU (%)',timestamps,cpuFilled);
+                    renderChart(memCanvas.id,'Uso de Memória (MiB)',timestamps,memFilled);
+                });
+            }
         });
+}
 
-        function renderChart(canvasId,label,labels,datasetsObj){
-            const ctx=document.getElementById(canvasId).getContext('2d');
-            const datasets=Object.keys(datasetsObj).map(k=>({label:k,data:datasetsObj[k],fill:false,borderWidth:2}));
-            if(canvasId==='cpuChart'&&cpuChart) cpuChart.destroy();
-            if(canvasId==='memChart'&&memChart) memChart.destroy();
-            const chart=new Chart(ctx,{type:'line',data:{labels,datasets},options:{responsive:true,plugins:{legend:{position:'bottom'}},scales:{y:{beginAtZero:true}}}});
-            if(canvasId==='cpuChart') cpuChart=chart; else memChart=chart;
-        }
-        </script>
+function renderChart(canvasId,label,labels,datasetsObj,isServer=false){
+    const ctx = document.getElementById(canvasId).getContext('2d');
+    const bodyTheme = body.classList.contains('dark') ? 'dark' : 'light';
+    const chartBg = bodyTheme==='dark'?'rgba(40,40,40,0.8)':'rgba(255,255,255,0.95)';
+    const axisColor = bodyTheme==='dark'?'#eee':'#333';
+    const gridColor = bodyTheme==='dark'?'rgba(255,255,255,0.08)':'rgba(0,0,0,0.05)';
 
-    </body>
-    </html>
-    """, available_list=available_list)
+    const datasets = Object.keys(datasetsObj).map(k=>{
+        const values = datasetsObj[k];
+        const getColor = (v)=>{
+            if(isServer){
+                if(v<=10) return 'rgb(0,200,0)';
+                if(v<=30) return 'rgb(255,215,0)';
+                return 'rgb(200,0,0)';
+            } else if(label.includes('CPU')){
+                if(v<=80) return 'rgb(0,200,0)';
+                if(v<=100) return 'rgb(255,215,0)';
+                return 'rgb(200,0,0)';
+            } else if(label.includes('Memória')){
+                if(v<=512) return 'rgb(0,200,0)';
+                if(v<=1024) return 'rgb(255,215,0)';
+                return 'rgb(200,0,0)';
+            }
+            return 'rgb(0,0,255)';
+        };
+        const pointColors = values.map(getColor);
+
+        return {
+            label: k,
+            data: values,
+            borderColor: 'rgba(128,128,128,0.6)',
+            backgroundColor: pointColors,
+            pointBackgroundColor: pointColors,
+            pointBorderColor: pointColors,
+            borderWidth: 1,
+            fill: false,
+            tension: 0.4,
+            pointRadius: 2
+        };
+    });
+
+    let existingChart;
+    if(canvasId.startsWith('cpuChart') && cpuChart) existingChart=cpuChart;
+    if(canvasId.startsWith('memChart') && memChart) existingChart=memChart;
+    if(existingChart) existingChart.destroy();
+
+    const chart = new Chart(ctx,{
+        type:'line',
+        data:{labels,datasets},
+        options:{
+            responsive:true,
+            plugins:{
+                legend:{
+                    position:'bottom',
+                    labels:{
+                        color:axisColor,
+                        generateLabels:function(chart){
+                            return Chart.defaults.plugins.legend.labels.generateLabels(chart).map(label=>{
+                                const ds = chart.data.datasets[label.datasetIndex];
+                                const lastColor = ds.pointBackgroundColor[ds.pointBackgroundColor.length-1];
+                                return {...label, strokeStyle:lastColor, fillStyle:lastColor, color:axisColor};
+                            });
+                        }
+                    }
+                },
+                title:{ display:true, text:label, color:axisColor, font:{size:16,weight:'bold'} },
+                tooltip:{
+                    titleColor:axisColor,
+                    bodyColor:axisColor,
+                    callbacks:{ label: ctx => `${ctx.dataset.label}: ${ctx.formattedValue}` }
+                }
+            },
+            scales:{
+                x:{ ticks:{color:axisColor}, grid:{color:gridColor} },
+                y:{ beginAtZero:true, ticks:{color:axisColor}, grid:{color:gridColor} }
+            },
+            layout:{padding:{top:10,bottom:10,left:10,right:10}}
+        },
+        plugins:[{
+            id:'customBackground',
+            beforeDraw:chart=>{
+                const {ctx,chartArea}=chart;
+                if(!chartArea) return;
+                ctx.save();
+                ctx.fillStyle=chartBg;
+                ctx.fillRect(chartArea.left,chartArea.top,chartArea.right-chartArea.left,chartArea.bottom-chartArea.top);
+                ctx.restore();
+            }
+        }]
+    });
+
+    if(canvasId.startsWith('cpuChart')) cpuChart=chart;
+    else memChart=chart;
+}
+
+window.addEventListener('load',()=>{
+    const now=new Date();
+    const past=new Date(now.getTime()-5*60000);
+    startHour.value=`${String(past.getHours()).padStart(2,'0')}:${String(past.getMinutes()).padStart(2,'0')}`;
+    endHour.value=`${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
+    reportType.value='services';
+    reportDate.value=(available['services'][0]||'');
+    populateStacks('services');
+    setTimeout(generateReport,500);
+});
+</script>
+
+</body>
+</html>
+""", server_hostname=server_hostname, available_list=available_list)
 
 
 @bp_reports.route(f'{FLASK_PREFIX}/reports/data', methods=['GET'])
