@@ -33,21 +33,6 @@ def reports():
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
     <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='images/favicon.ico') }}">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <style>
-        body.dark { background-color: #121212; color: #eee; }
-        body.light { background-color: #f5f5f5; color: #333; }
-        .container-section { 
-            background-color: var(--section-bg);
-            padding: 20px;
-            border-radius: 8px;
-            transition: background-color 0.3s;
-            margin-bottom: 30px;
-        }
-        body.dark .container-section { --section-bg: #2b2b2b; }
-        body.light .container-section { --section-bg: #e0e0e0; }
-        .chart-box { margin-bottom: 30px; }
-        canvas { height: 250px !important; } 
-    </style>
 </head>
 <body>
 <nav class="navbar navbar-light shadow-sm px-4" style="height:60px;">
@@ -106,7 +91,6 @@ def reports():
 <div class="container mb-4">
     <div id="chartContainer" class="chart-flex" style="display:none;"></div>
 </div>
-
 <script>
 const available = {{ available_list | tojson }};
 const reportType = document.getElementById('reportType');
@@ -142,7 +126,7 @@ function populateStacks(type){
                     data.flatMap(e => e.data.map(d => {
                         const parts = d.Service.split('_');
                         if(parts.length > 1) return parts.slice(0,-1).join('_');
-                        return d.Service; // usar o nome completo do serviço se não tiver '_'
+                        return d.Service;
                     }))
                 )];
                 reportStack.innerHTML = '<option value="all">Todas</option>';
@@ -166,35 +150,51 @@ reportDate.addEventListener('change', ()=>populateStacks(reportType.value));
 const body = document.body;
 const themeIcon = document.getElementById('themeIcon');
 
+// 🔧 Corrigido: pegar todos os charts e atualizar com base no tema atual
+function updateAllChartsTheme() {
+    const charts = Chart.instances;
+    Object.values(charts).forEach(chart => refreshChartColors(chart));
+}
+
+// 🔧 Corrigido: lógica do tema padronizada (usa dark-mode/light-mode)
 function applyTheme(theme) {
-    body.classList.remove('dark','light');
-    body.classList.add(theme);
+    body.classList.remove('dark-mode', 'light-mode');
+    body.classList.add(`${theme}-mode`);
     localStorage.setItem('theme', theme);
     themeIcon.className = theme === 'dark' ? 'bi bi-sun' : 'bi bi-moon';
 }
 
+// 🔧 Corrigido: leitura do tema e atualização das cores
 function refreshChartColors(chart) {
-    const bodyTheme = body.classList.contains('dark') ? 'dark' : 'light';
-    const axisColor = bodyTheme === 'dark' ? '#eee' : '#333';
-    const gridColor = bodyTheme === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)';
-    const chartBg = bodyTheme === 'dark' ? 'rgba(40,40,40,0.8)' : 'rgba(255,255,255,0.95)';
-
+    const isDark = body.classList.contains('dark-mode');
+    const axisColor = isDark ? '#eee' : '#333';
+    const gridColor = isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)';
+    const chartBg = isDark ? 'rgba(40,40,40,0.8)' : 'rgba(255,255,255,0.95)';
     chart.options.scales.x.ticks.color = axisColor;
     chart.options.scales.x.grid.color = gridColor;
     chart.options.scales.y.ticks.color = axisColor;
     chart.options.scales.y.grid.color = gridColor;
     chart.options.plugins.title.color = axisColor;
     chart.options.plugins.legend.labels.color = axisColor;
-
-    chart.update();
+    const bgPlugin = chart.config.plugins.find(p => p.id === 'customBackground');
+    if (bgPlugin) {
+        bgPlugin.beforeDraw = chart => {
+            const {ctx, chartArea} = chart;
+            if(!chartArea) return;
+            ctx.save();
+            ctx.fillStyle = chartBg;
+            ctx.fillRect(chartArea.left, chartArea.top, chartArea.right - chartArea.left, chartArea.bottom - chartArea.top);
+            ctx.restore();
+        };
+    }
+    chart.update('none');
 }
 
 applyTheme(localStorage.getItem('theme') || 'dark');
 document.getElementById('toggleTheme').addEventListener('click', () => {
-    const newTheme = body.classList.contains('dark') ? 'light' : 'dark';
+    const newTheme = body.classList.contains('dark-mode') ? 'light' : 'dark';
     applyTheme(newTheme);
-    if(cpuChart) refreshChartColors(cpuChart);
-    if(memChart) refreshChartColors(memChart);
+    updateAllChartsTheme();
 });
 
 startHour.addEventListener('input', () => {
@@ -299,96 +299,89 @@ function generateReport() {
                 const dataset = { "{{ server_hostname }}": values };
                 renderChart('cpuChart','Server Load (Actual)',timestamps,dataset,true);
             } else {
-const stacks = [...new Set(filteredData.flatMap(e => e.data.map(d => {
-    const parts = d.Service.split('_');
-    // stack = tudo antes do último "_" ou o próprio nome se não tiver "_"
-    return parts.length > 1 ? parts.slice(0, -1).join('_') : d.Service;
-})))];
+                const stacks = [...new Set(filteredData.flatMap(e => e.data.map(d => {
+                    const parts = d.Service.split('_');
+                    return parts.length > 1 ? parts.slice(0, -1).join('_') : d.Service;
+                })))];
 
+                stacks.forEach(stack => {
+                    if(stackSel !== 'all' && stackSel !== stack) return;
 
-stacks.forEach(stack => {
-    if(stackSel !== 'all' && stackSel !== stack) return;
+                    const stackDiv = document.createElement('div');
+                    stackDiv.className = 'mb-4 w-100';
 
-    // Container vertical da stack
-    const stackDiv = document.createElement('div');
-    stackDiv.className = 'mb-4 w-100';
+                    const stackTitle = document.createElement('h5');
+                    stackTitle.textContent = stack;
+                    stackTitle.className = 'mb-2';
+                    stackDiv.appendChild(stackTitle);
 
-    // Título da stack
-    const stackTitle = document.createElement('h5');
-    stackTitle.textContent = stack;
-    stackTitle.className = 'mb-2';
-    stackDiv.appendChild(stackTitle);
+                    const chartsRow = document.createElement('div');
+                    chartsRow.style.display = 'flex';
+                    chartsRow.style.gap = '20px';
 
-    // Linha de gráficos lado a lado
-    const chartsRow = document.createElement('div');
-    chartsRow.style.display = 'flex';
-    chartsRow.style.gap = '20px';
+                    const cpuDiv = document.createElement('div');
+                    cpuDiv.className = 'chart-box';
+                    cpuDiv.style.flex = '1';
+                    const cpuCanvas = document.createElement('canvas');
+                    cpuCanvas.id = `cpuChart_${stack}`;
+                    cpuDiv.appendChild(cpuCanvas);
 
-    const cpuDiv = document.createElement('div');
-    cpuDiv.className = 'chart-box';
-    cpuDiv.style.flex = '1';
-    const cpuCanvas = document.createElement('canvas');
-    cpuCanvas.id = `cpuChart_${stack}`;
-    cpuDiv.appendChild(cpuCanvas);
+                    const memDiv = document.createElement('div');
+                    memDiv.className = 'chart-box';
+                    memDiv.style.flex = '1';
+                    const memCanvas = document.createElement('canvas');
+                    memCanvas.id = `memChart_${stack}`;
+                    memDiv.appendChild(memCanvas);
 
-    const memDiv = document.createElement('div');
-    memDiv.className = 'chart-box';
-    memDiv.style.flex = '1';
-    const memCanvas = document.createElement('canvas');
-    memCanvas.id = `memChart_${stack}`;
-    memDiv.appendChild(memCanvas);
+                    chartsRow.appendChild(cpuDiv);
+                    chartsRow.appendChild(memDiv);
+                    stackDiv.appendChild(chartsRow);
+                    chartContainer.appendChild(stackDiv);
 
-    chartsRow.appendChild(cpuDiv);
-    chartsRow.appendChild(memDiv);
-    stackDiv.appendChild(chartsRow);
-    chartContainer.appendChild(stackDiv);
+                    const cpuData = {}, memData = {};
+                    const services = [...new Set(filteredData.flatMap(e => e.data.filter(d => {
+                        const sName = d.Service.split('_').length > 1 ? d.Service.split('_').slice(0,-1).join('_') : d.Service;
+                        return sName === stack;
+                    }).map(d => d.Service)))];
 
-    // --- Dados CPU/Memória ---
-    const cpuData = {}, memData = {};
-    const services = [...new Set(filteredData.flatMap(e => e.data.filter(d => {
-        const sName = d.Service.split('_').length > 1 ? d.Service.split('_').slice(0,-1).join('_') : d.Service;
-        return sName === stack;
-    }).map(d => d.Service)))];
+                    services.forEach(s => { cpuData[s] = {}; memData[s] = {}; });
 
-    services.forEach(s => { cpuData[s] = {}; memData[s] = {}; });
+                    timestamps.forEach(ts => {
+                        filteredData.forEach(e => {
+                            if(e.timestamp.slice(11,16) === ts){
+                                e.data.forEach(d => {
+                                    const sName = d.Service.split('_').length > 1 ? d.Service.split('_').slice(0,-1).join('_') : d.Service;
+                                    if(sName !== stack) return;
+                                    cpuData[d.Service][ts] = parseFloat(d["CPU Usage"]?.replace(/[^\d.]/g,'')||0);
+                                    memData[d.Service][ts] = parseFloat(d["Memory Usage"]?.replace(/[^\d.]/g,'')||0);
+                                });
+                            }
+                        });
+                        services.forEach(s => {
+                            if(cpuData[s][ts]===undefined) cpuData[s][ts]=0;
+                            if(memData[s][ts]===undefined) memData[s][ts]=0;
+                        });
+                    });
 
-    timestamps.forEach(ts => {
-        filteredData.forEach(e => {
-            if(e.timestamp.slice(11,16) === ts){
-                e.data.forEach(d => {
-                    const sName = d.Service.split('_').length > 1 ? d.Service.split('_').slice(0,-1).join('_') : d.Service;
-                    if(sName !== stack) return;
-                    cpuData[d.Service][ts] = parseFloat(d["CPU Usage"]?.replace(/[^\d.]/g,'')||0);
-                    memData[d.Service][ts] = parseFloat(d["Memory Usage"]?.replace(/[^\d.]/g,'')||0);
+                    const cpuFilled = {}, memFilled = {};
+                    services.forEach(s => {
+                        cpuFilled[s] = timestamps.map(t=>cpuData[s][t]);
+                        memFilled[s] = timestamps.map(t=>memData[s][t]);
+                    });
+
+                    renderChart(cpuCanvas.id, 'Uso de CPU (%)', timestamps, cpuFilled);
+                    renderChart(memCanvas.id, 'Uso de Memória (MiB)', timestamps, memFilled);
                 });
-            }
-        });
-        services.forEach(s => {
-            if(cpuData[s][ts]===undefined) cpuData[s][ts]=0;
-            if(memData[s][ts]===undefined) memData[s][ts]=0;
-        });
-    });
-
-    const cpuFilled = {}, memFilled = {};
-    services.forEach(s => {
-        cpuFilled[s] = timestamps.map(t=>cpuData[s][t]);
-        memFilled[s] = timestamps.map(t=>memData[s][t]);
-    });
-
-    const cpuChartObj = renderChart(cpuCanvas.id, 'Uso de CPU (%)', timestamps, cpuFilled);
-    const memChartObj = renderChart(memCanvas.id, 'Uso de Memória (MiB)', timestamps, memFilled);
-
-});
             }
         });
 }
 
 function renderChart(canvasId, label, labels, datasetsObj, isServer=false){
     const ctx = document.getElementById(canvasId).getContext('2d');
-    const bodyTheme = body.classList.contains('dark') ? 'dark' : 'light';
-    const chartBg = bodyTheme==='dark'?'rgba(40,40,40,0.8)':'rgba(255,255,255,0.95)';
-    const axisColor = bodyTheme==='dark'?'#eee':'#333';
-    const gridColor = bodyTheme==='dark'?'rgba(255,255,255,0.08)':'rgba(0,0,0,0.05)';
+    const isDark = body.classList.contains('dark-mode');
+    const chartBg = isDark ? 'rgba(40,40,40,0.8)' : 'rgba(255,255,255,0.95)';
+    const axisColor = isDark ? '#eee' : '#333';
+    const gridColor = isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)';
 
     const datasets = Object.keys(datasetsObj).map(k => {
         const values = datasetsObj[k];
@@ -470,6 +463,7 @@ window.addEventListener('load',()=>{
     setTimeout(generateReport,500);
 });
 </script>
+
 
 </body>
 </html>

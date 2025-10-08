@@ -41,17 +41,13 @@ def admin():
         <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/toastify-js/src/toastify.min.css">
         <script src="https://cdn.jsdelivr.net/npm/toastify-js"></script>
         <style>
-            body.dark { background-color: #121212; color: #eee; }
-            body.light { background-color: #f5f5f5; color: #333; }
-            .navbar { transition: background-color 0.3s; }
-            .container-section { 
-                background-color: var(--section-bg); 
-                padding: 20px; 
-                border-radius: 8px; 
-                transition: background-color 0.3s; 
+            .navbar { transition: background-color 0.3s, color 0.3s; }
+            .container-section {
+                background-color: var(--section-bg);
+                padding: 20px;
+                border-radius: 8px;
+                transition: background-color 0.3s, color 0.3s;
             }
-            body.dark .container-section { --section-bg: #2b2b2b; }
-            body.light .container-section { --section-bg: #e0e0e0; }
         </style>
     </head>
     <body>
@@ -121,146 +117,150 @@ def admin():
                 </div>
             </div>
         </div>
+<script>
+    const body = document.body;
+    const toggleBtn = document.getElementById('toggleTheme');
+    const themeIcon = document.getElementById('themeIcon');
 
-        <script>
-            const body = document.body;
-            const toggleBtn = document.getElementById('toggleTheme');
-            const themeIcon = document.getElementById('themeIcon');
-            function applyTheme(theme) {
-                body.classList.remove('dark', 'light');
-                body.classList.add(theme);
-                localStorage.setItem('theme', theme);
-                themeIcon.className = theme === 'dark' ? 'bi bi-sun' : 'bi bi-moon';
+    function applyTheme(theme) {
+        body.classList.remove('dark-mode', 'light-mode');
+        body.classList.add(theme + '-mode');
+        localStorage.setItem('theme', theme);
+        themeIcon.className = theme === 'dark' ? 'bi bi-sun' : 'bi bi-moon';
+    }
+
+    const savedTheme = localStorage.getItem('theme') || 'dark';
+    applyTheme(savedTheme);
+
+    toggleBtn.addEventListener('click', () => {
+        const newTheme = body.classList.contains('dark-mode') ? 'light' : 'dark';
+        applyTheme(newTheme);
+    });
+
+    // Form listeners
+    document.addEventListener('DOMContentLoaded', () => {
+        setupFormListeners();
+        fetchSchedules();
+    });
+
+    function setupFormListeners() {
+        document.getElementById('intervalForm')?.addEventListener('submit', e => {
+            e.preventDefault();
+            const intervalo = parseInt(document.getElementById('current_interval').value);
+            if (isNaN(intervalo) || intervalo <= 0) return alert("Intervalo inválido!");
+            fetch("{{ url_for('set_interval.set_interval') }}", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ interval: intervalo })
+            }).then(r => r.json()).then(data => { alert(data.message || data.error); location.reload(); });
+        });
+
+        document.getElementById('excludedForm')?.addEventListener('submit', e => {
+            e.preventDefault();
+            const selectedServices = Array.from(document.querySelectorAll('input[name="excluded_services"]:checked')).map(c => c.value);
+            fetch("{{ url_for('admin.admin') }}", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ form_type: 'excludedForm', excluded_services: selectedServices })
+            }).then(r => r.json()).then(data => { alert(data.message || data.error); });
+        });
+    }
+
+    let currentSchedules = {};
+    function fetchSchedules() {
+        fetch("{{ url_for('get_alert_schedule.get_alert_schedule') }}")
+            .then(res => res.json())
+            .then(data => {
+                currentSchedules = data;
+                renderSchedules();
+                loadAlertConfig();
+            }).catch(console.error);
+    }
+
+    function renderSchedules() {
+        const container = document.getElementById('schedule-container');
+        container.innerHTML = '';
+        ['telegram', 'teams'].forEach(tool => {
+            const title = tool.charAt(0).toUpperCase() + tool.slice(1);
+            const scheduleList = currentSchedules[tool] || [];
+            const html = `
+                <div class="mb-4">
+                    <div class="d-flex align-items-center mb-2">
+                        <strong class="me-2">${title}</strong>
+                        <div class="form-check form-switch">
+                            <input class="form-check-input me-2" type="checkbox" id="toggle${title}Logs">
+                            <label class="form-check-label" for="toggle${title}Logs"></label>
+                        </div>
+                    </div>
+                    <ul id="${tool}-schedule-list">
+                        ${scheduleList.map((s, i) => `<li>${s.time} - ${s.action.toUpperCase()} <button onclick="removeSchedule('${tool}', ${i})" class="btn btn-sm btn-danger ms-2">Remover</button></li>`).join('')}
+                    </ul>
+                </div>`;
+            container.innerHTML += html;
+        });
+        attachToggleListeners();
+    }
+
+    function attachToggleListeners() {
+        ['Telegram', 'Teams'].forEach(title => {
+            const toggle = document.getElementById(`toggle${title}Logs`);
+            if (toggle) {
+                toggle.removeEventListener('change', toggleAlertState);
+                toggle.addEventListener('change', toggleAlertState);
             }
-            const savedTheme = localStorage.getItem('theme') || 'dark';
-            applyTheme(savedTheme);
-            toggleBtn.addEventListener('click', () => {
-                const newTheme = body.classList.contains('dark') ? 'light' : 'dark';
-                applyTheme(newTheme);
-            });
-            // Form listeners
-            document.addEventListener('DOMContentLoaded', () => {
-                setupFormListeners();
-                fetchSchedules();
-            });
+        });
+    }
 
-            function setupFormListeners() {
-                document.getElementById('intervalForm')?.addEventListener('submit', e => {
-                    e.preventDefault();
-                    const intervalo = parseInt(document.getElementById('current_interval').value);
-                    if (isNaN(intervalo) || intervalo <= 0) return alert("Intervalo inválido!");
-                    fetch("{{ url_for('set_interval.set_interval') }}", {
-                        method: "POST",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({ interval: intervalo })
-                    }).then(r => r.json()).then(data => { alert(data.message || data.error); location.reload(); });
-                });
+    function addSchedule() {
+        const tool = document.getElementById('service-selector').value;
+        const time = document.getElementById('global-time').value;
+        const action = document.getElementById('global-action').value;
+        if (!time) return alert("Horário inválido.");
+        const updatedSchedule = [...(currentSchedules[tool] || []), { time, action }];
+        updateScheduleOnServer(tool, updatedSchedule);
+    }
 
-                document.getElementById('excludedForm')?.addEventListener('submit', e => {
-                    e.preventDefault();
-                    const selectedServices = Array.from(document.querySelectorAll('input[name="excluded_services"]:checked')).map(c => c.value);
-                    fetch("{{ url_for('admin.admin') }}", {
-                        method: "POST",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({ form_type: 'excludedForm', excluded_services: selectedServices })
-                    }).then(r => r.json()).then(data => { alert(data.message || data.error); });
-                });
-            }
+    function removeSchedule(tool, index) {
+        const updatedSchedule = [...(currentSchedules[tool] || [])];
+        updatedSchedule.splice(index, 1);
+        updateScheduleOnServer(tool, updatedSchedule);
+    }
 
-            let currentSchedules = {};
-            function fetchSchedules() {
-                fetch("{{ url_for('get_alert_schedule.get_alert_schedule') }}")
-                    .then(res => res.json())
-                    .then(data => {
-                        currentSchedules = data;
-                        renderSchedules();
-                        loadAlertConfig();
-                    }).catch(console.error);
-            }
+    function updateScheduleOnServer(tool, schedule) {
+        fetch("{{ url_for('update_alert_schedule.update_alert_schedule') }}", {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ tool, schedule })
+        }).then(() => fetchSchedules()).catch(console.error);
+    }
 
-            function renderSchedules() {
-                const container = document.getElementById('schedule-container');
-                container.innerHTML = '';
-                ['telegram', 'teams'].forEach(tool => {
-                    const title = tool.charAt(0).toUpperCase() + tool.slice(1);
-                    const scheduleList = currentSchedules[tool] || [];
-                    const html = `
-                        <div class="mb-4">
-                            <div class="d-flex align-items-center mb-2">
-                                <strong class="me-2">${title}</strong>
-                                <div class="form-check form-switch">
-                                    <input class="form-check-input me-2" type="checkbox" id="toggle${title}Logs">
-                                    <label class="form-check-label" for="toggle${title}Logs"></label>
-                                </div>
-                            </div>
-                            <ul id="${tool}-schedule-list">
-                                ${scheduleList.map((s, i) => `<li>${s.time} - ${s.action.toUpperCase()} <button onclick="removeSchedule('${tool}', ${i})" class="btn btn-sm btn-danger ms-2">Remover</button></li>`).join('')}
-                            </ul>
-                        </div>`;
-                    container.innerHTML += html;
-                });
-                attachToggleListeners();
-            }
+    function loadAlertConfig() {
+        fetch("{{ url_for('alert_config.alert_config') }}")
+            .then(r => r.json())
+            .then(data => {
+                setToggleState('Telegram', data.telegram === 'enabled');
+                setToggleState('Teams', data.teams === 'enabled');
+            }).catch(console.error);
+    }
 
-            function attachToggleListeners() {
-                ['Telegram', 'Teams'].forEach(title => {
-                    const toggle = document.getElementById(`toggle${title}Logs`);
-                    if (toggle) {
-                        toggle.removeEventListener('change', toggleAlertState);
-                        toggle.addEventListener('change', toggleAlertState);
-                    }
-                });
-            }
+    function setToggleState(service, isEnabled) {
+        const toggle = document.getElementById(`toggle${service}Logs`);
+        if (toggle) { toggle.checked = isEnabled; }
+    }
 
-            function addSchedule() {
-                const tool = document.getElementById('service-selector').value;
-                const time = document.getElementById('global-time').value;
-                const action = document.getElementById('global-action').value;
-                if (!time) return alert("Horário inválido.");
-                const updatedSchedule = [...(currentSchedules[tool] || []), { time, action }];
-                updateScheduleOnServer(tool, updatedSchedule);
-            }
+    function toggleAlertState() {
+        const payload = {
+            telegram: document.getElementById('toggleTelegramLogs')?.checked,
+            teams: document.getElementById('toggleTeamsLogs')?.checked
+        };
+        fetch('{{ url_for('alert_toggle.alert_toggle') }}', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        }).then(r => r.json()).then(() => fetchSchedules()).catch(console.error);
+    }
+</script>
 
-            function removeSchedule(tool, index) {
-                const updatedSchedule = [...(currentSchedules[tool] || [])];
-                updatedSchedule.splice(index, 1);
-                updateScheduleOnServer(tool, updatedSchedule);
-            }
-
-            function updateScheduleOnServer(tool, schedule) {
-                fetch("{{ url_for('update_alert_schedule.update_alert_schedule') }}", {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ tool, schedule })
-                }).then(() => fetchSchedules()).catch(console.error);
-            }
-
-            function loadAlertConfig() {
-                fetch("{{ url_for('alert_config.alert_config') }}")
-                    .then(r => r.json())
-                    .then(data => {
-                        setToggleState('Telegram', data.telegram === 'enabled');
-                        setToggleState('Teams', data.teams === 'enabled');
-                    }).catch(console.error);
-            }
-
-            function setToggleState(service, isEnabled) {
-                const toggle = document.getElementById(`toggle${service}Logs`);
-                if (toggle) { toggle.checked = isEnabled; }
-            }
-
-            function toggleAlertState() {
-                const payload = {
-                    telegram: document.getElementById('toggleTelegramLogs')?.checked,
-                    teams: document.getElementById('toggleTeamsLogs')?.checked
-                };
-                fetch('{{ url_for('alert_toggle.alert_toggle') }}', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload)
-                }).then(r => r.json()).then(() => fetchSchedules()).catch(console.error);
-            }
-        </script>
     </body>
     </html>
     """, services=services, excluded_services=excluded_services, tempo_medio=tempo_medio, current_interval=current_interval, FLASK_PREFIX=FLASK_PREFIX, VERSAO=VERSAO)

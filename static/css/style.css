@@ -257,3 +257,52 @@ table {
         flex: 1 1 100%;
     }
 }
+
+/* === Containers de seções === */
+.container-section { 
+    background-color: var(--section-bg);
+    padding: 20px;
+    border-radius: 8px;
+    transition: background-color 0.3s, color 0.3s;
+    margin-bottom: 30px;
+}
+
+/* Tema aplicado via body.dark-mode / body.light-mode */
+body.dark-mode .container-section { --section-bg: #2b2b2b; }
+body.light-mode .container-section { --section-bg: #e0e0e0; }
+
+/* === Inputs e Selects no tema escuro/claro === */
+body.dark-mode input.form-control,
+body.dark-mode select.form-select {
+    background-color: #1e1e1e;
+    color: #e0e0e0;
+    border-color: #555;
+}
+
+body.dark-mode input.form-control:focus,
+body.dark-mode select.form-select:focus {
+    background-color: #2b2b2b;
+    color: #ffffff;
+    border-color: #777;
+    box-shadow: none;
+}
+
+body.dark-mode option {
+    background-color: #1e1e1e;
+    color: #e0e0e0;
+}
+
+body.light-mode input.form-control,
+body.light-mode select.form-select {
+    background-color: #ffffff;
+    color: #000000;
+    border-color: #ccc;
+}
+
+body.light-mode input.form-control:focus,
+body.light-mode select.form-select:focus {
+    background-color: #ffffff;
+    color: #111111;
+    border-color: #888;
+    box-shadow: none;
+}
