@@ -78,11 +78,11 @@ Acesse http://localhost:4005/reports
 
 * **Services**: Graficos de uso de CPU e Memoria. 
 
-![reports](prints/reports1.png)
+![reports](prints/reports-svc.png)
 
 * **Server**: Grafico de Load.
 
-![reports](prints/reports2.png)
+![reports](prints/reports-srv.png)
 
 ### Pagina Admin: 
 
