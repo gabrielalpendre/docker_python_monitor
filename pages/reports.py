@@ -136,14 +136,17 @@ function populateStacks(type){
         const date = reportDate.value;
         if(!date) return;
         fetch(`/reports/data?file=${date}_services_report.json`)
-            .then(r=>r.json())
-            .then(data=>{
-                const stacks = [...new Set(data.flatMap(e=>e.data.map(d=>{
-                    const parts = d.Service.split('_');
-                    return parts.slice(0, -1).join('_');
-                })))];
+            .then(r => r.json())
+            .then(data => {
+                const stacks = [...new Set(
+                    data.flatMap(e => e.data.map(d => {
+                        const parts = d.Service.split('_');
+                        if(parts.length > 1) return parts.slice(0,-1).join('_');
+                        return d.Service; // usar o nome completo do serviço se não tiver '_'
+                    }))
+                )];
                 reportStack.innerHTML = '<option value="all">Todas</option>';
-                stacks.forEach(s=>{
+                stacks.forEach(s => {
                     const opt = document.createElement('option');
                     opt.value = s;
                     opt.textContent = s;
@@ -207,7 +210,6 @@ document.getElementById('generateBtn').addEventListener('click', generateReport)
 
 autoRefreshCheckbox.addEventListener('change', ()=>{
     if(autoRefreshCheckbox.checked){
-        // Atualiza intervalo para últimos 5 minutos
         const updateLast5Min = ()=>{
             const now = new Date();
             const past = new Date(now.getTime()-5*60000);
@@ -215,11 +217,11 @@ autoRefreshCheckbox.addEventListener('change', ()=>{
             endHour.value=`${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
         };
         updateLast5Min();
-        generateReport(); // Atualiza imediatamente
+        generateReport();
         if(autoRefreshInterval) clearInterval(autoRefreshInterval);
         autoRefreshInterval = setInterval(()=>{
-            updateLast5Min(); // Ajusta formulário
-            generateReport(); // Atualiza gráfico
+            updateLast5Min();
+            generateReport();
         }, 60000);
     } else {
         if(autoRefreshInterval) clearInterval(autoRefreshInterval);
@@ -251,7 +253,6 @@ function generateReport() {
             chartContainer.innerHTML=''; 
             chartContainer.style.display='flex';
 
-            // Filtra JSON pelo intervalo do formulário
             const filteredData = rawData.filter(e=>{
                 const [h,m] = e.timestamp.slice(11,16).split(':').map(Number);
                 const total = h*60+m;
@@ -260,7 +261,6 @@ function generateReport() {
 
             if(filteredData.length===0) return alert('Nenhum dado encontrado no intervalo selecionado.');
 
-            // Gera timestamps com preenchimento de lacunas >5min
             const timestamps = [];
             const dataMap = {};
             filteredData.forEach(e=>{
@@ -299,78 +299,100 @@ function generateReport() {
                 const dataset = { "{{ server_hostname }}": values };
                 renderChart('cpuChart','Server Load (Actual)',timestamps,dataset,true);
             } else {
-                const stacks = [...new Set(filteredData.flatMap(e=>e.data.map(d=>{
-                    return d.Service.split('_').slice(0,-1).join('_');
-                })))];
+const stacks = [...new Set(filteredData.flatMap(e => e.data.map(d => {
+    const parts = d.Service.split('_');
+    // stack = tudo antes do último "_" ou o próprio nome se não tiver "_"
+    return parts.length > 1 ? parts.slice(0, -1).join('_') : d.Service;
+})))];
 
-                stacks.forEach(stack=>{
-                    if(stackSel!=='all' && stackSel!==stack) return;
 
-                    const cpuDiv = document.createElement('div');
-                    cpuDiv.className='chart-box';
-                    const cpuCanvas = document.createElement('canvas');
-                    cpuCanvas.id=`cpuChart_${stack}`;
-                    cpuDiv.appendChild(cpuCanvas);
+stacks.forEach(stack => {
+    if(stackSel !== 'all' && stackSel !== stack) return;
 
-                    const memDiv = document.createElement('div');
-                    memDiv.className='chart-box';
-                    const memCanvas = document.createElement('canvas');
-                    memCanvas.id=`memChart_${stack}`;
-                    memDiv.appendChild(memCanvas);
+    // Container vertical da stack
+    const stackDiv = document.createElement('div');
+    stackDiv.className = 'mb-4 w-100';
 
-                    chartContainer.appendChild(cpuDiv);
-                    chartContainer.appendChild(memDiv);
+    // Título da stack
+    const stackTitle = document.createElement('h5');
+    stackTitle.textContent = stack;
+    stackTitle.className = 'mb-2';
+    stackDiv.appendChild(stackTitle);
 
-                    const cpuData={}, memData={};
-                    const services = [...new Set(filteredData.flatMap(e=>e.data.filter(d=>{
-                        return d.Service.split('_').slice(0,-1).join('_')===stack;
-                    }).map(d=>d.Service)))];
+    // Linha de gráficos lado a lado
+    const chartsRow = document.createElement('div');
+    chartsRow.style.display = 'flex';
+    chartsRow.style.gap = '20px';
 
-                    services.forEach(s=>{
-                        cpuData[s]={};
-                        memData[s]={};
-                    });
+    const cpuDiv = document.createElement('div');
+    cpuDiv.className = 'chart-box';
+    cpuDiv.style.flex = '1';
+    const cpuCanvas = document.createElement('canvas');
+    cpuCanvas.id = `cpuChart_${stack}`;
+    cpuDiv.appendChild(cpuCanvas);
 
-                    timestamps.forEach(ts=>{
-                        filteredData.forEach(e=>{
-                            if(e.timestamp.slice(11,16)===ts){
-                                e.data.forEach(d=>{
-                                    const sName = d.Service.split('_').slice(0,-1).join('_');
-                                    if(sName!==stack) return;
-                                    cpuData[d.Service][ts]=parseFloat(d["CPU Usage"]?.replace(/[^\d.]/g,'')||0);
-                                    memData[d.Service][ts]=parseFloat(d["Memory Usage"]?.replace(/[^\d.]/g,'')||0);
-                                });
-                            }
-                        });
-                        services.forEach(s=>{
-                            if(cpuData[s][ts]===undefined) cpuData[s][ts]=0;
-                            if(memData[s][ts]===undefined) memData[s][ts]=0;
-                        });
-                    });
+    const memDiv = document.createElement('div');
+    memDiv.className = 'chart-box';
+    memDiv.style.flex = '1';
+    const memCanvas = document.createElement('canvas');
+    memCanvas.id = `memChart_${stack}`;
+    memDiv.appendChild(memCanvas);
 
-                    const cpuFilled={}, memFilled={};
-                    services.forEach(s=>{
-                        cpuFilled[s]=timestamps.map(t=>cpuData[s][t]);
-                        memFilled[s]=timestamps.map(t=>memData[s][t]);
-                    });
+    chartsRow.appendChild(cpuDiv);
+    chartsRow.appendChild(memDiv);
+    stackDiv.appendChild(chartsRow);
+    chartContainer.appendChild(stackDiv);
 
-                    renderChart(cpuCanvas.id,'Uso de CPU (%)',timestamps,cpuFilled);
-                    renderChart(memCanvas.id,'Uso de Memória (MiB)',timestamps,memFilled);
+    // --- Dados CPU/Memória ---
+    const cpuData = {}, memData = {};
+    const services = [...new Set(filteredData.flatMap(e => e.data.filter(d => {
+        const sName = d.Service.split('_').length > 1 ? d.Service.split('_').slice(0,-1).join('_') : d.Service;
+        return sName === stack;
+    }).map(d => d.Service)))];
+
+    services.forEach(s => { cpuData[s] = {}; memData[s] = {}; });
+
+    timestamps.forEach(ts => {
+        filteredData.forEach(e => {
+            if(e.timestamp.slice(11,16) === ts){
+                e.data.forEach(d => {
+                    const sName = d.Service.split('_').length > 1 ? d.Service.split('_').slice(0,-1).join('_') : d.Service;
+                    if(sName !== stack) return;
+                    cpuData[d.Service][ts] = parseFloat(d["CPU Usage"]?.replace(/[^\d.]/g,'')||0);
+                    memData[d.Service][ts] = parseFloat(d["Memory Usage"]?.replace(/[^\d.]/g,'')||0);
                 });
+            }
+        });
+        services.forEach(s => {
+            if(cpuData[s][ts]===undefined) cpuData[s][ts]=0;
+            if(memData[s][ts]===undefined) memData[s][ts]=0;
+        });
+    });
+
+    const cpuFilled = {}, memFilled = {};
+    services.forEach(s => {
+        cpuFilled[s] = timestamps.map(t=>cpuData[s][t]);
+        memFilled[s] = timestamps.map(t=>memData[s][t]);
+    });
+
+    const cpuChartObj = renderChart(cpuCanvas.id, 'Uso de CPU (%)', timestamps, cpuFilled);
+    const memChartObj = renderChart(memCanvas.id, 'Uso de Memória (MiB)', timestamps, memFilled);
+
+});
             }
         });
 }
 
-function renderChart(canvasId,label,labels,datasetsObj,isServer=false){
+function renderChart(canvasId, label, labels, datasetsObj, isServer=false){
     const ctx = document.getElementById(canvasId).getContext('2d');
     const bodyTheme = body.classList.contains('dark') ? 'dark' : 'light';
     const chartBg = bodyTheme==='dark'?'rgba(40,40,40,0.8)':'rgba(255,255,255,0.95)';
     const axisColor = bodyTheme==='dark'?'#eee':'#333';
     const gridColor = bodyTheme==='dark'?'rgba(255,255,255,0.08)':'rgba(0,0,0,0.05)';
 
-    const datasets = Object.keys(datasetsObj).map(k=>{
+    const datasets = Object.keys(datasetsObj).map(k => {
         const values = datasetsObj[k];
-        const getColor = (v)=>{
+        const pointColors = values.map(v=>{
             if(isServer){
                 if(v<=10) return 'rgb(0,200,0)';
                 if(v<=30) return 'rgb(255,215,0)';
@@ -385,8 +407,7 @@ function renderChart(canvasId,label,labels,datasetsObj,isServer=false){
                 return 'rgb(200,0,0)';
             }
             return 'rgb(0,0,255)';
-        };
-        const pointColors = values.map(getColor);
+        });
 
         return {
             label: k,
@@ -402,12 +423,7 @@ function renderChart(canvasId,label,labels,datasetsObj,isServer=false){
         };
     });
 
-    let existingChart;
-    if(canvasId.startsWith('cpuChart') && cpuChart) existingChart=cpuChart;
-    if(canvasId.startsWith('memChart') && memChart) existingChart=memChart;
-    if(existingChart) existingChart.destroy();
-
-    const chart = new Chart(ctx,{
+    return new Chart(ctx, {
         type:'line',
         data:{labels,datasets},
         options:{
@@ -415,18 +431,9 @@ function renderChart(canvasId,label,labels,datasetsObj,isServer=false){
             plugins:{
                 legend:{
                     position:'bottom',
-                    labels:{
-                        color:axisColor,
-                        generateLabels:function(chart){
-                            return Chart.defaults.plugins.legend.labels.generateLabels(chart).map(label=>{
-                                const ds = chart.data.datasets[label.datasetIndex];
-                                const lastColor = ds.pointBackgroundColor[ds.pointBackgroundColor.length-1];
-                                return {...label, strokeStyle:lastColor, fillStyle:lastColor, color:axisColor};
-                            });
-                        }
-                    }
+                    labels:{ color:axisColor }
                 },
-                title:{ display:true, text:label, color:axisColor, font:{size:16,weight:'bold'} },
+                title:{ display:true, text:label, color:axisColor },
                 tooltip:{
                     titleColor:axisColor,
                     bodyColor:axisColor,
@@ -436,24 +443,20 @@ function renderChart(canvasId,label,labels,datasetsObj,isServer=false){
             scales:{
                 x:{ ticks:{color:axisColor}, grid:{color:gridColor} },
                 y:{ beginAtZero:true, ticks:{color:axisColor}, grid:{color:gridColor} }
-            },
-            layout:{padding:{top:10,bottom:10,left:10,right:10}}
+            }
         },
         plugins:[{
             id:'customBackground',
             beforeDraw:chart=>{
-                const {ctx,chartArea}=chart;
+                const {ctx, chartArea}=chart;
                 if(!chartArea) return;
                 ctx.save();
                 ctx.fillStyle=chartBg;
-                ctx.fillRect(chartArea.left,chartArea.top,chartArea.right-chartArea.left,chartArea.bottom-chartArea.top);
+                ctx.fillRect(chartArea.left, chartArea.top, chartArea.right-chartArea.left, chartArea.bottom-chartArea.top);
                 ctx.restore();
             }
         }]
     });
-
-    if(canvasId.startsWith('cpuChart')) cpuChart=chart;
-    else memChart=chart;
 }
 
 window.addEventListener('load',()=>{
