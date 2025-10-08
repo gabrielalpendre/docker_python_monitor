@@ -76,10 +76,13 @@ Acesse http://localhost:4005/
 
 Acesse http://localhost:4005/reports
 
-* **Services**: Grafico de Load.
-* **Server**: Graficos de uso de CPU e Memoria.
+* **Services**: Graficos de uso de CPU e Memoria. 
 
-![reports](prints/reports.png)
+![reports](prints/reports1.png)
+
+* **Server**: Grafico de Load.
+
+![reports](prints/reports2.png)
 
 ### Pagina Admin: 
 
