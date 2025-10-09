@@ -33,17 +33,6 @@ def reports():
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
     <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='images/favicon.ico') }}">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <style>
-        .chart-stack-wrapper { display: flex; gap: 10px; align-items: center; }
-        .chart-col { display: flex; flex-direction: column; gap: 10px; flex: 1; }
-        .chart-box { flex: 1; background: transparent; padding: 0; margin: 0; }
-        .slo-indicator { 
-            display: flex; flex-direction: column; align-items: center; justify-content: center; 
-            width: 80px; height: 100%; font-size: 14px; 
-        }
-        .slo-indicator strong { font-size: 14px; }
-        .slo-indicator div { font-size: 24px; margin-top: 5px; }
-    </style>
 </head>
 <body>
 <nav class="navbar navbar-light shadow-sm px-4" style="height:60px;">
@@ -412,39 +401,118 @@ function generateReport() {
 
 // Ajuste do SLO para considerar os dados da data selecionada
 function addSLOIndicator(dayData, type, stack=null){
-    const values = [];
+    if(type === 'server'){
+        const values = [];
+
+        dayData.forEach(e=>{
+            e.data.forEach(d=>{
+                values.push(parseFloat(d.Actual?.replace(/[^\d.]/g,'')||0));
+            });
+        });
+
+        const total = values.length;
+        const greenCount = values.filter(v => v<=10).length;
+        const percent = total>0 ? Math.round((greenCount/total)*100) : 0;
+
+        let color='green';
+        if(percent < 85) color='red';
+        else if(percent < 100) color='gold';
+
+        const sloDiv = document.createElement('div');
+        sloDiv.className='slo-indicator';
+        sloDiv.innerHTML = `
+            <strong>SLO Load</strong>
+            <div style="color:${color};font-size:18px;font-weight:bold;">${percent}</div>
+        `;
+        return sloDiv;
+    }
+
+    // --- Serviços ---
+    const svcMap = {};
 
     dayData.forEach(e=>{
         e.data.forEach(d=>{
-            if(type==='server'){
-                values.push(parseFloat(d.Actual?.replace(/[^\d.]/g,'')||0));
-            } else if(stack){
-                const sName = d.Service.split('_').length>1 
-                              ? d.Service.split('_').slice(0,-1).join('_') 
-                              : d.Service;
-                if(sName === stack){
-                    values.push(parseFloat(d["CPU Usage"]?.replace(/[^\d.]/g,'')||0));
-                }
+            const fullSvc = d.Service;
+            const sName = fullSvc.split('_').length>1 ? fullSvc.split('_').slice(0,-1).join('_') : fullSvc;
+            if(stack && sName !== stack) return;
+
+            if(!svcMap[fullSvc]) svcMap[fullSvc] = { healthy: 0, total: 0 };
+
+            const repStr = d.Replicas || '';
+            const m = repStr.match(/(\d+)\s*\/\s*(\d+)/);
+            if(m){
+                const avail = parseInt(m[1], 10);
+                const desired = parseInt(m[2], 10);
+                if(desired > 0 && avail >= desired) svcMap[fullSvc].healthy++;
+                svcMap[fullSvc].total++;
+            } else {
+                svcMap[fullSvc].total++;
             }
         });
     });
 
-    const total = values.length;
-    const greenCount = values.filter(v => {
-        if(type==='server') return v<=10;       // mantém a lógica do server
-        else return v<=80;                       // mantém a lógica do CPU
-    }).length;
-
-    const percent = total>0 ? Math.round((greenCount/total)*100) : 0;
-
-    let color='green';
-    if(percent < 85) color='red';
-    else if(percent < 100) color='yellow';
-    else color='green';
-
     const sloDiv = document.createElement('div');
     sloDiv.className='slo-indicator';
-    sloDiv.innerHTML = `<strong>SLO DO DIA</strong><div style="color:${color}">${percent}</div>`;
+    sloDiv.style.alignItems='flex-start';
+    sloDiv.style.width='fit-content';
+    sloDiv.style.maxWidth='320px';
+    sloDiv.style.padding='8px 12px';
+    sloDiv.style.borderRadius='10px';
+    sloDiv.style.boxShadow='0 2px 6px rgba(0,0,0,0.2)';
+    sloDiv.style.background='rgba(255,255,255,0.05)';
+    sloDiv.style.fontSize='13px';
+    sloDiv.style.wordBreak='break-word';
+
+    const title = document.createElement('strong');
+    title.textContent = 'SLO Disponibilidade';
+    title.style.marginBottom='6px';
+    sloDiv.appendChild(title);
+
+    const list = document.createElement('div');
+    list.style.display='flex';
+    list.style.flexDirection='column';
+    list.style.gap='3px';
+    list.style.width='100%';
+
+    const services = Object.keys(svcMap).sort();
+    if(services.length === 0){
+        const p = document.createElement('p');
+        p.textContent = 'Nenhum serviço encontrado';
+        p.style.margin='0';
+        list.appendChild(p);
+    } else {
+        services.forEach(svc => {
+            const { healthy, total } = svcMap[svc];
+            const percent = total > 0 ? Math.round((healthy / total) * 100) : 0;
+            let color = 'green';
+            if(percent < 85) color = 'red';
+            else if(percent < 100) color = 'gold';
+
+            const row = document.createElement('div');
+            row.style.display='flex';
+            row.style.justifyContent='space-between';
+            row.style.alignItems='center';
+            row.style.gap='10px';
+            row.style.padding='2px 0';
+            row.style.borderBottom='1px solid rgba(255,255,255,0.05)';
+
+            const name = document.createElement('span');
+            name.textContent = svc;
+            name.style.flex='1';
+            name.style.overflowWrap='anywhere';
+
+            const val = document.createElement('span');
+            val.textContent = `${percent}`;
+            val.style.fontWeight='bold';
+            val.style.color=color;
+
+            row.appendChild(name);
+            row.appendChild(val);
+            list.appendChild(row);
+        });
+    }
+
+    sloDiv.appendChild(list);
     return sloDiv;
 }
 
