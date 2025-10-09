@@ -33,6 +33,17 @@ def reports():
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
     <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='images/favicon.ico') }}">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        .chart-stack-wrapper { display: flex; gap: 10px; align-items: center; }
+        .chart-col { display: flex; flex-direction: column; gap: 10px; flex: 1; }
+        .chart-box { flex: 1; background: transparent; padding: 0; margin: 0; }
+        .slo-indicator { 
+            display: flex; flex-direction: column; align-items: center; justify-content: center; 
+            width: 80px; height: 100%; font-size: 14px; 
+        }
+        .slo-indicator strong { font-size: 14px; }
+        .slo-indicator div { font-size: 24px; margin-top: 5px; }
+    </style>
 </head>
 <body>
 <nav class="navbar navbar-light shadow-sm px-4" style="height:60px;">
@@ -59,14 +70,14 @@ def reports():
             </select>
         </div>
         <div class="col-md-2">
-            <label for="reportDate" class="form-label">Data:</label>
-            <select id="reportDate" class="form-select form-select-sm"></select>
-        </div>
-        <div class="col-md-2">
             <label for="reportStack" class="form-label">Stack:</label>
             <select id="reportStack" class="form-select form-select-sm">
                 <option value="all">Todas</option>
             </select>
+        </div>
+        <div class="col-md-2">
+            <label for="reportDate" class="form-label">Data:</label>
+            <select id="reportDate" class="form-select form-select-sm"></select>
         </div>
         <div class="col-md-2">
             <label for="startHour" class="form-label">Hora Início:</label>
@@ -91,6 +102,7 @@ def reports():
 <div class="container mb-4">
     <div id="chartContainer" class="chart-flex" style="display:none;"></div>
 </div>
+
 <script>
 const available = {{ available_list | tojson }};
 const reportType = document.getElementById('reportType');
@@ -100,10 +112,10 @@ const startHour = document.getElementById('startHour');
 const endHour = document.getElementById('endHour');
 const autoRefreshCheckbox = document.getElementById('autoRefresh');
 
-let cpuChart, memChart;
 let autoRefreshInterval = null;
 
-function populateDates(type) {
+function populateDates(type, keepDate=false) {
+    const prevDate = reportDate.value;
     reportDate.innerHTML = '';
     (available[type] || []).forEach(date => {
         const opt = document.createElement('option');
@@ -111,6 +123,9 @@ function populateDates(type) {
         opt.textContent = date;
         reportDate.appendChild(opt);
     });
+    if (keepDate && prevDate && (available[type] || []).includes(prevDate)) {
+        reportDate.value = prevDate;
+    }
     populateStacks(type);
 }
 
@@ -125,8 +140,7 @@ function populateStacks(type){
                 const stacks = [...new Set(
                     data.flatMap(e => e.data.map(d => {
                         const parts = d.Service.split('_');
-                        if(parts.length > 1) return parts.slice(0,-1).join('_');
-                        return d.Service;
+                        return parts.length > 1 ? parts.slice(0,-1).join('_') : d.Service;
                     }))
                 )];
                 reportStack.innerHTML = '<option value="all">Todas</option>';
@@ -144,19 +158,17 @@ function populateStacks(type){
 }
 
 populateDates('services');
-reportType.addEventListener('change', ()=>populateDates(reportType.value));
+reportType.addEventListener('change', ()=>populateDates(reportType.value, true));
 reportDate.addEventListener('change', ()=>populateStacks(reportType.value));
 
 const body = document.body;
 const themeIcon = document.getElementById('themeIcon');
 
-// 🔧 Corrigido: pegar todos os charts e atualizar com base no tema atual
 function updateAllChartsTheme() {
     const charts = Chart.instances;
     Object.values(charts).forEach(chart => refreshChartColors(chart));
 }
 
-// 🔧 Corrigido: lógica do tema padronizada (usa dark-mode/light-mode)
 function applyTheme(theme) {
     body.classList.remove('dark-mode', 'light-mode');
     body.classList.add(`${theme}-mode`);
@@ -164,11 +176,10 @@ function applyTheme(theme) {
     themeIcon.className = theme === 'dark' ? 'bi bi-sun' : 'bi bi-moon';
 }
 
-// 🔧 Corrigido: leitura do tema e atualização das cores
 function refreshChartColors(chart) {
     const isDark = body.classList.contains('dark-mode');
     const axisColor = isDark ? '#eee' : '#333';
-    const gridColor = isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)';
+    const gridColor = isDark ? 'rgba(0,0,0,0.05)' : 'rgba(255,255,255,0.05)';
     const chartBg = isDark ? 'rgba(40,40,40,0.8)' : 'rgba(255,255,255,0.95)';
     chart.options.scales.x.ticks.color = axisColor;
     chart.options.scales.x.grid.color = gridColor;
@@ -197,19 +208,15 @@ document.getElementById('toggleTheme').addEventListener('click', () => {
     updateAllChartsTheme();
 });
 
-startHour.addEventListener('input', () => {
-    if(startHour.value){
-        const [h,m] = startHour.value.split(':').map(Number);
-        endHour.min = `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`;
-        let newH = h+1; if(newH>23) newH=23;
-        endHour.value = `${String(newH).padStart(2,'0')}:${String(m).padStart(2,'0')}`;
-    } else { endHour.min="00:00"; endHour.value=""; }
-});
-
 document.getElementById('generateBtn').addEventListener('click', generateReport);
 
 autoRefreshCheckbox.addEventListener('change', ()=>{
     if(autoRefreshCheckbox.checked){
+        reportDate.value = available[reportType.value][0] || '';
+        reportDate.disabled = true;
+        startHour.disabled = true;
+        endHour.disabled = true;
+
         const updateLast5Min = ()=>{
             const now = new Date();
             const past = new Date(now.getTime()-5*60000);
@@ -224,10 +231,12 @@ autoRefreshCheckbox.addEventListener('change', ()=>{
             generateReport();
         }, 60000);
     } else {
+        reportDate.disabled = false;
+        startHour.disabled = false;
+        endHour.disabled = false;
         if(autoRefreshInterval) clearInterval(autoRefreshInterval);
     }
 });
-
 
 function generateReport() {
     const type = reportType.value;
@@ -252,6 +261,8 @@ function generateReport() {
             const chartContainer = document.getElementById('chartContainer');
             chartContainer.innerHTML=''; 
             chartContainer.style.display='flex';
+            chartContainer.style.flexDirection='column';
+            chartContainer.style.gap='20px';
 
             const filteredData = rawData.filter(e=>{
                 const [h,m] = e.timestamp.slice(11,16).split(':').map(Number);
@@ -288,54 +299,77 @@ function generateReport() {
             });
 
             if(type==='server'){
-                const cpuCanvasDiv = document.createElement('div');
-                cpuCanvasDiv.className='chart-box';
+                const wrapper = document.createElement('div');
+                wrapper.style.display='flex';
+                wrapper.style.alignItems='center';
+                wrapper.style.gap='10px';
+
+                const cpuDiv = document.createElement('div');
+                cpuDiv.className='chart-box';
                 const cpuCanvas = document.createElement('canvas');
                 cpuCanvas.id='cpuChart';
-                cpuCanvasDiv.appendChild(cpuCanvas);
-                chartContainer.appendChild(cpuCanvasDiv);
+                cpuDiv.appendChild(cpuCanvas);
 
-                const values = timestamps.map(t=>parseFloat(dataMap[t]?.[0]?.Actual?.replace(/[^\d.]/g,'')||0));
+                // SLO calculado com os dados filtrados pelo horário
+                const sloDiv = addSLOIndicator(rawData, type); 
+                wrapper.appendChild(cpuDiv);
+                wrapper.appendChild(sloDiv);
+                chartContainer.appendChild(wrapper);
+
+                // Prepara dados do chart
+                const values = filteredData.map(e=>parseFloat(e.data?.[0]?.Actual?.replace(/[^\d.]/g,'')||0));
+                const timestampsFiltered = filteredData.map(e=>e.timestamp.slice(11,16));
                 const dataset = { "{{ server_hostname }}": values };
-                renderChart('cpuChart','Server Load (Actual)',timestamps,dataset,true);
+
+                renderChart('cpuChart','Server Load (Actual)',timestampsFiltered,dataset,true);
             } else {
-                const stacks = [...new Set(filteredData.flatMap(e => e.data.map(d => {
+                const stacks = [...new Set(rawData.flatMap(e => e.data.map(d => {
                     const parts = d.Service.split('_');
-                    return parts.length > 1 ? parts.slice(0, -1).join('_') : d.Service;
+                    return parts.length > 1 ? parts.slice(0,-1).join('_') : d.Service;
                 })))];
 
                 stacks.forEach(stack => {
                     if(stackSel !== 'all' && stackSel !== stack) return;
 
                     const stackDiv = document.createElement('div');
-                    stackDiv.className = 'mb-4 w-100';
+                    stackDiv.className='chart-stack-wrapper';
+                    stackDiv.style.display='flex';
+                    stackDiv.style.gap='20px';
+                    stackDiv.style.alignItems='flex-start';
 
-                    const stackTitle = document.createElement('h5');
-                    stackTitle.textContent = stack;
-                    stackTitle.className = 'mb-2';
-                    stackDiv.appendChild(stackTitle);
+                    const chartsCol = document.createElement('div');
+                    chartsCol.className='chart-col';
+                    chartsCol.style.display='flex';
+                    chartsCol.style.flexDirection='column';
+                    chartsCol.style.gap='20px';
 
                     const chartsRow = document.createElement('div');
-                    chartsRow.style.display = 'flex';
-                    chartsRow.style.gap = '20px';
+                    chartsRow.style.display='flex';
+                    chartsRow.style.gap='20px';
 
                     const cpuDiv = document.createElement('div');
-                    cpuDiv.className = 'chart-box';
-                    cpuDiv.style.flex = '1';
+                    cpuDiv.className='chart-box';
+                    cpuDiv.style.flex='1';
                     const cpuCanvas = document.createElement('canvas');
                     cpuCanvas.id = `cpuChart_${stack}`;
                     cpuDiv.appendChild(cpuCanvas);
 
                     const memDiv = document.createElement('div');
-                    memDiv.className = 'chart-box';
-                    memDiv.style.flex = '1';
+                    memDiv.className='chart-box';
+                    memDiv.style.flex='1';
                     const memCanvas = document.createElement('canvas');
                     memCanvas.id = `memChart_${stack}`;
                     memDiv.appendChild(memCanvas);
 
                     chartsRow.appendChild(cpuDiv);
                     chartsRow.appendChild(memDiv);
-                    stackDiv.appendChild(chartsRow);
+                    chartsCol.appendChild(chartsRow);
+                    stackDiv.appendChild(chartsCol);
+
+                    const sloDiv = addSLOIndicator(rawData, type, stack); // SLO para o dia inteiro
+                    sloDiv.style.alignSelf='center';
+                    stackDiv.appendChild(sloDiv);
+
                     chartContainer.appendChild(stackDiv);
 
                     const cpuData = {}, memData = {};
@@ -376,6 +410,45 @@ function generateReport() {
         });
 }
 
+// Ajuste do SLO para considerar os dados da data selecionada
+function addSLOIndicator(dayData, type, stack=null){
+    const values = [];
+
+    dayData.forEach(e=>{
+        e.data.forEach(d=>{
+            if(type==='server'){
+                values.push(parseFloat(d.Actual?.replace(/[^\d.]/g,'')||0));
+            } else if(stack){
+                const sName = d.Service.split('_').length>1 
+                              ? d.Service.split('_').slice(0,-1).join('_') 
+                              : d.Service;
+                if(sName === stack){
+                    values.push(parseFloat(d["CPU Usage"]?.replace(/[^\d.]/g,'')||0));
+                }
+            }
+        });
+    });
+
+    const total = values.length;
+    const greenCount = values.filter(v => {
+        if(type==='server') return v<=10;       // mantém a lógica do server
+        else return v<=80;                       // mantém a lógica do CPU
+    }).length;
+
+    const percent = total>0 ? Math.round((greenCount/total)*100) : 0;
+
+    let color='green';
+    if(percent < 85) color='red';
+    else if(percent < 100) color='yellow';
+    else color='green';
+
+    const sloDiv = document.createElement('div');
+    sloDiv.className='slo-indicator';
+    sloDiv.innerHTML = `<strong>SLO DO DIA</strong><div style="color:${color}">${percent}</div>`;
+    return sloDiv;
+}
+
+// renderChart com cor do último ponto na legenda/rodapé
 function renderChart(canvasId, label, labels, datasetsObj, isServer=false){
     const ctx = document.getElementById(canvasId).getContext('2d');
     const isDark = body.classList.contains('dark-mode');
@@ -387,32 +460,26 @@ function renderChart(canvasId, label, labels, datasetsObj, isServer=false){
         const values = datasetsObj[k];
         const pointColors = values.map(v=>{
             if(isServer){
-                if(v<=10) return 'rgb(0,200,0)';
-                if(v<=30) return 'rgb(255,215,0)';
-                return 'rgb(200,0,0)';
+                return v<=10 ? 'rgb(0,200,0)' : v<=30 ? 'rgb(255,215,0)' : 'rgb(200,0,0)';
             } else if(label.includes('CPU')){
-                if(v<=80) return 'rgb(0,200,0)';
-                if(v<=100) return 'rgb(255,215,0)';
-                return 'rgb(200,0,0)';
+                return v<=80 ? 'rgb(0,200,0)' : v<=100 ? 'rgb(255,215,0)' : 'rgb(200,0,0)';
             } else if(label.includes('Memória')){
-                if(v<=512) return 'rgb(0,200,0)';
-                if(v<=1024) return 'rgb(255,215,0)';
-                return 'rgb(200,0,0)';
-            }
-            return 'rgb(0,0,255)';
+                return v<=512 ? 'rgb(0,200,0)' : v<=1024 ? 'rgb(255,215,0)' : 'rgb(200,0,0)';
+            } else return 'rgb(0,0,255)';
         });
+        const lastColor = pointColors[pointColors.length-1]; // cor do último ponto
 
         return {
             label: k,
             data: values,
             borderColor: 'rgba(128,128,128,0.6)',
-            backgroundColor: pointColors,
+            backgroundColor: lastColor,
             pointBackgroundColor: pointColors,
             pointBorderColor: pointColors,
             borderWidth: 1,
             fill: false,
             tension: 0.4,
-            pointRadius: 2
+            pointRadius: 3
         };
     });
 
@@ -456,15 +523,15 @@ window.addEventListener('load',()=>{
     const now=new Date();
     const past=new Date(now.getTime()-5*60000);
     startHour.value=`${String(past.getHours()).padStart(2,'0')}:${String(past.getMinutes()).padStart(2,'0')}`;
-    endHour.value=`${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
+    let newH = now.getHours() + 1;
+    if(newH>23) newH=23;
+    endHour.value=`${String(newH).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
     reportType.value='services';
     reportDate.value=(available['services'][0]||'');
     populateStacks('services');
     setTimeout(generateReport,500);
 });
 </script>
-
-
 </body>
 </html>
 """, server_hostname=server_hostname, available_list=available_list)
