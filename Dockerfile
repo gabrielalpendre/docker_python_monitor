@@ -6,6 +6,7 @@ COPY app.py /monitor/
 
 COPY requirements.txt /monitor/
 COPY pages /monitor/pages/
+COPY static /monitor/static/
 COPY backend /monitor/backend/
 COPY functions /monitor/functions/
 
