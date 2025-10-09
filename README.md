@@ -101,6 +101,10 @@ Arquivo logs/flask_app.log
 
 ![console-logs](prints/logs.png)
 
+## Roadmap
+
+* **render-templates**: Melhoria na utilizacao dos render-templates nas paginas de frontend.
+* **export-reports**: Export em csv dos dados selecionados no filtro dos reports. Backend para gerar estes dados.
 
 ## Contribuicao
 
