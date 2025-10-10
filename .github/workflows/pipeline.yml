@@ -1,38 +1,41 @@
-name: Deploy Docker Monitor Stack
+name: Deploy Docker Monitor
 
 on:
   push:
-    branches:
-      - master
-  workflow_dispatch: 
+    branches: [ main ]
 
 jobs:
   deploy:
-    name: Deploy to Docker Swarm (GCP CloudShell)
-    runs-on: [self-hosted]
+    runs-on: self-hosted
 
     steps:
-      - name: Checkout repository
+      - name: Checkout repo
         uses: actions/checkout@v4
 
-      - name: Ensure Docker is available
+      - name: Ensure Swarm active
         run: |
-          docker version || (echo "Docker not found!" && exit 1)
-          docker info
-
-      - name: Initialize Swarm and deploy
-        run: |
-          set -e
-          echo "=== Checking Swarm status ==="
           SWARM_STATUS=$(docker info --format '{{.Swarm.LocalNodeState}}')
           echo "Current Swarm status: $SWARM_STATUS"
           if [ "$SWARM_STATUS" != "active" ]; then
-              echo "Initializing Docker Swarm..."
-              docker swarm init || true
+            docker swarm init
           fi
-          echo "=== Building Monitor image ==="
-          cp -Rfv .env.example .env.prod
-          docker build -t docker-monitor .
-          echo "=== Deploying stack ==="
-          docker stack deploy -c docker-compose.yml stack_monitor
-          echo "=== Done! ==="
+
+      - name: Setup UV (Python universal runner)
+        run: |
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
+
+      - name: Run Python tests via uvx
+        run: |
+          uvx pytest -v --maxfail=1 --disable-warnings || exit 1
+
+      - name: Build Docker image
+        run: |
+          docker build -t docker-monitor -f Dockerfile.local .
+
+      - name: Deploy stack on Swarm
+        run: |
+          docker stack deploy -c docker-compose.swarm.yml stack_monitor
+
+      - name: Check service status
+        run: docker service ls

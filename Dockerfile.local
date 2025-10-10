@@ -20,6 +20,6 @@ RUN apt-get update && apt-get install -y tzdata && \
     ln -fs /usr/share/zoneinfo/America/Sao_Paulo /etc/localtime && \
     dpkg-reconfigure -f noninteractive tzdata
 
-EXPOSE 5005
+EXPOSE 4005
 
 CMD ["python", "app.py"]

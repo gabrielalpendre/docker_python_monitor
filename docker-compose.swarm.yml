@@ -1,0 +1,35 @@
+version: "3.9"
+
+services:
+  docker:
+    image: docker-monitor:latest
+    build:
+      context: .
+      dockerfile: Dockerfile.local
+    env_file: .env
+    ports:
+      - "4005:4005"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /proc/loadavg:/host_proc_loadavg:ro
+      - /proc/uptime:/host_proc_uptime:ro
+      - ./:/monitor
+    environment:
+      SERVER_HOSTNAME: ${SERVER_HOSTNAME}
+      SERVER_IP: ${SERVER_IP}
+      PREFIX: ${PREFIX}
+    deploy:
+      mode: replicated
+      replicas: 1
+      resources:
+        limits:
+          cpus: "2"
+          memory: 512M
+      restart_policy:
+        condition: on-failure
+    networks:
+      - report_network
+
+networks:
+  report_network:
+    driver: overlay
