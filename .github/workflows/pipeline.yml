@@ -31,6 +31,7 @@ jobs:
               docker swarm init || true
           fi
           echo "=== Building Monitor image ==="
+          cp -Rfv .env.example .env.prod
           docker build -t docker-monitor .
           echo "=== Deploying stack ==="
           docker stack deploy -c docker-compose.yml stack_monitor
