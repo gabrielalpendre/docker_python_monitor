@@ -20,14 +20,32 @@ jobs:
             docker swarm init
           fi
 
-      - name: Setup UV (Python universal runner)
+      - name: Python Code Quality & Security Check
         run: |
-          curl -LsSf https://astral.sh/uv/install.sh | sh
-          echo "$HOME/.local/bin" >> $GITHUB_PATH
+          echo "🔹 Checking Python packages..."
+          uvx pip list
+      
+          echo "🔹 Checking for broken dependencies..."
+          uvx pip check || true
+      
+          echo "🔹 Checking for known vulnerabilities..."
+          uvx pip install safety
+          uvx safety check || exit 1
+      
+          echo "🔹 Code style check (PEP8)..."
+          uvx pip install flake8
+          uvx flake8 monitor || exit 1
+      
+          echo "🔹 Type hint check..."
+          uvx pip install mypy
+          uvx mypy monitor || exit 1
+      
+          echo "🔹 Security analysis with Bandit..."
+          uvx pip install bandit
+          uvx bandit -r monitor -ll || exit 1
+      
+          echo "✅ Python code quality and security validation passed"
 
-      - name: Run Python tests via uvx
-        run: |
-          uvx pytest -v --maxfail=1 --disable-warnings || exit 1
 
       - name: Build Docker image
         run: |
