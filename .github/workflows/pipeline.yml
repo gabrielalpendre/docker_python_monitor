@@ -2,7 +2,7 @@ name: Deploy Docker Monitor
 
 on:
   push:
-    branches: [ main ]
+    branches: [ master ]
 
 jobs:
   deploy:
