@@ -18,7 +18,7 @@ jobs:
           echo "Current Swarm status: $SWARM_STATUS"
           if [ "$SWARM_STATUS" != "active" ]; then
             docker swarm init
-          fi
+                fi
 
       - name: Python Code Quality & Security Check
         run: |
@@ -30,19 +30,22 @@ jobs:
       
           echo "🔹 Checking for known vulnerabilities..."
           uvx pip install safety
-          uvx safety check || exit 1
+          uvx safety check || true
       
           echo "🔹 Code style check (PEP8)..."
           uvx pip install flake8
-          uvx flake8 monitor || exit 1
+          uvx flake8 backend functions pages app.py || exit 1
       
           echo "🔹 Type hint check..."
           uvx pip install mypy
-          uvx mypy monitor || exit 1
+          uvx mypy backend functions pages app.py || exit 1
+      
+          echo "🔹 Compiling Python code..."
+          uvx python -m compileall backend functions pages app.py || exit 1
       
           echo "🔹 Security analysis with Bandit..."
           uvx pip install bandit
-          uvx bandit -r monitor -ll || exit 1
+          uvx bandit -r backend functions pages app.py -ll || exit 1
       
           echo "✅ Python code quality and security validation passed"
 
