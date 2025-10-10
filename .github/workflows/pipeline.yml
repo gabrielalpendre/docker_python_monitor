@@ -54,6 +54,7 @@ jobs:
 
       - name: Deploy stack on Swarm
         run: |
+          cp -Rfv .env.example .env
           docker stack deploy -c docker-compose.swarm.yml stack_monitor
 
       - name: Check service status
