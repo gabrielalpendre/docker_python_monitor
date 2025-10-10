@@ -9,7 +9,7 @@ on:
 jobs:
   deploy:
     name: Deploy to Docker Swarm (GCP CloudShell)
-    runs-on: [self-hosted, linux, gcp-cloudshell]
+    runs-on: [self-hosted]
 
     steps:
       - name: Checkout repository
