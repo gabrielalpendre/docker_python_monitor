@@ -10,7 +10,7 @@ Os alertas sao enviados para as ferramentas Telegram, Teams e Email com base em 
 ## Pre-requisitos
 
 * Python 3.x
-* Docker instalado e em execucao
+* Docker instalado e em execucao com swarm ativado
 
 ## Ambiente
 
@@ -33,7 +33,7 @@ Os alertas sao enviados para as ferramentas Telegram, Teams e Email com base em 
 ### Execucao Local
 
 1.  Certifique-se de que o Docker esteja em execucao e que esteja com o swarm ativo. 
-2.  Exemplo de projeto CRUD para laboratorio: https://github.com/gabrielalpendre/docker_webapp_lab
+2.  Exemplo de projeto CRUD para laboratorio: http://github.com/gabrielalpendre/docker_webapp_lab
 3.  Execute o aplicativo:
 
     ```bash
@@ -88,14 +88,16 @@ Acesse http://localhost:4005/reports
 
 Pagina para gerenciamento dos schedules, exclusoes dos servicos a serem monitorados e tambem acompanhamento do tempo medio de execucao.
 
-Acesse https://localhost:4005/admin
+Acesse http://localhost:4005/admin
 
 ![admin](prints/admin.png)
 
 
 ### Pagina/Console Logs:
 
-Acesse https://localhost:4005/
+Acesse http://localhost:4005/logs
+
+Ou
 
 Arquivo logs/flask_app.log
 
@@ -114,4 +116,6 @@ Contribuicões sao bem-vindas! Sinta-se à vontade para abrir issues e pull requ
 ## Criador
 
 Gabriel Alpendre 2025 --please copyright--
-https://www.linkedin.com/in/gabriel-alpendre/
+
+http://www.linkedin.com/in/gabriel-alpendre/
+
