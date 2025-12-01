@@ -15,12 +15,61 @@ bp_send_alert = Blueprint('send_alert', __name__)
 bp_get_a_schedule = Blueprint('get_alert_schedule', __name__)
 bp_upd_a_schedule = Blueprint('update_alert_schedule', __name__)
 
-@bp_get_a_schedule.route(f'{FLASK_PREFIX}/alert/schedule', methods=['GET'])
+@bp_get_a_schedule.route(f'{FLASK_PREFIX}/backend/alert/schedule', methods=['GET'])
 def get_alert_schedule():
+    """
+    Retrieves the alert schedules for all tools.
+    ---
+    tags:
+      - Alerts
+    responses:
+      200:
+        description: A JSON object with alert schedules for each tool (e.g., telegram, teams).
+        schema:
+          type: object
+          properties:
+            telegram:
+              type: array
+              items:
+                type: object
+            teams:
+              type: array
+              items:
+                type: object
+    """
     return jsonify(load_alert_schedules())
 
-@bp_upd_a_schedule.route(f'{FLASK_PREFIX}/alert/schedule', methods=['POST'])
+@bp_upd_a_schedule.route(f'{FLASK_PREFIX}/backend/alert/schedule', methods=['POST'])
 def update_alert_schedule():
+    """
+    Updates the alert schedule for a specific tool.
+    ---
+    tags:
+      - Alerts
+    parameters:
+      - name: body
+        in: body
+        required: true
+        schema:
+          type: object
+          properties:
+            tool:
+              type: string
+              description: The alert tool to configure.
+              enum: ['telegram', 'teams']
+            schedule:
+              type: array
+              description: A list of schedule objects.
+              items:
+                type: object
+                properties:
+                  time:
+                    type: string
+                    example: "09:00"
+                  action:
+                    type: string
+                    enum: ['on', 'off']
+    """
     data = request.get_json()
     if not isinstance(data, dict):
         return jsonify({"error": "Formato inválido de dados"}), 400
@@ -39,13 +88,50 @@ def update_alert_schedule():
         print(f"Error: {e}")
         return jsonify({"error": "Valor inválido"}), 400
 
-@bp_load_config.route(f'{FLASK_PREFIX}/alert/config', methods=['GET'])
+@bp_load_config.route(f'{FLASK_PREFIX}/backend/alert/config', methods=['GET'])
 def alert_config():
+    """
+    Retrieves the current alert configuration.
+    ---
+    tags:
+      - Alerts
+    responses:
+      200:
+        description: The current configuration for alert tools (enabled/disabled).
+        schema:
+          type: object
+          properties:
+            telegram:
+              type: string
+            teams:
+              type: string
+    """
     current_alert_config = load_alert_config()
     return jsonify(current_alert_config)
 
-@bp_toggle_alert.route(f'{FLASK_PREFIX}/alert/toggle', methods=['POST'])
+@bp_toggle_alert.route(f'{FLASK_PREFIX}/backend/alert/toggle', methods=['POST'])
 def alert_toggle():
+    """
+    Enables or disables alert tools (Telegram, Teams).
+    ---
+    tags:
+      - Alerts
+    parameters:
+      - name: body
+        in: body
+        required: true
+        schema:
+          type: object
+          properties:
+            telegram:
+              type: boolean
+              description: Enable or disable Telegram alerts.
+              example: true
+            teams:
+              type: boolean
+              description: Enable or disable Teams alerts.
+              example: false
+    """
     data = request.get_json()
     telegram_data = data.get('telegram')
     teams_data = data.get('teams')
@@ -58,8 +144,33 @@ def alert_toggle():
         "teams": teams_data
     })
 
-@bp_test_alert.route(f'{FLASK_PREFIX}/alert/test', methods=['POST'])
+@bp_test_alert.route(f'{FLASK_PREFIX}/backend/alert/test', methods=['POST'])
 def test_alert():
+    """
+    Sends a test alert to a specified channel.
+    ---
+    tags:
+      - Alerts
+    parameters:
+      - name: body
+        in: body
+        required: true
+        schema:
+          type: object
+          properties:
+            type:
+              type: string
+              description: The type of service to test.
+              enum: ['queryes', 'services', 'queues', 'server']
+            service_name:
+              type: string
+              description: The name of the service to test.
+              example: "webapp"
+            chat_name:
+              type: string
+              description: The destination chat/channel for the alert.
+              enum: ['telegram_miner', 'telegram_infra', 'mail_miner', 'mail_infra']
+    """
     data = request.get_json()
 
     alert_type = data.get("type")
@@ -104,8 +215,33 @@ def test_alert():
     except Exception as e:
         return jsonify({"error": f"Erro ao processar o alerta: {str(e)}"}), 500
 
-@bp_send_alert.route(f'{FLASK_PREFIX}/alert/send', methods=['POST'])
+@bp_send_alert.route(f'{FLASK_PREFIX}/backend/alert/send', methods=['POST'])
 def send_alert():
+    """
+    Sends an alert externally to a specified channel.
+    ---
+    tags:
+      - Alerts
+    parameters:
+      - name: body
+        in: body
+        required: true
+        schema:
+          type: object
+          properties:
+            service_name:
+              type: string
+              description: The name of the service.
+              example: "external_api"
+            current_state:
+              type: string
+              description: The current state of the service, starting with an emoji.
+              example: "🔴 Falha na Backend externa"
+            chat_name:
+              type: string
+              description: The destination chat/channel for the alert.
+              enum: ['telegram_miner', 'telegram_infra', 'mail_miner', 'mail_infra']
+    """
     data = request.get_json()
     required_fields = ['service_name', 'current_state', 'chat_name']
     missing_fields = [field for field in required_fields if field not in data]

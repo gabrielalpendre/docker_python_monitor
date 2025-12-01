@@ -11,8 +11,31 @@ if FLASK_PREFIX != '/homol':
     bp_queues = Blueprint('queues', __name__)
     bp_queues_status = Blueprint('queues_status', __name__)
 
-    @bp_queues.route(f'{FLASK_PREFIX}/queues/<tipo>', methods=['GET'])
+    @bp_queues.route(f'{FLASK_PREFIX}/backend/queues/<tipo>', methods=['GET'])
     def queues(tipo):
+        """
+        Retrieves data for a specific queue type.
+        ---
+        tags:
+          - Queues
+        parameters:
+          - name: tipo
+            in: path
+            type: string
+            required: true
+            description: The type of queue to retrieve data for. Can be 'prd' or 'old'.
+            enum: ['prd', 'old']
+        responses:
+          200:
+            description: Queue data retrieved successfully.
+            schema:
+              type: object
+              properties:
+                timestamp:
+                  type: string
+                data:
+                  type: object
+        """
         if tipo == "prd":
             aws_account = "prd"
         elif tipo == "old":
@@ -29,8 +52,26 @@ if FLASK_PREFIX != '/homol':
             'data': report_data
         })
 
-    @bp_queues_status.route(f'{FLASK_PREFIX}/queues/status', methods=['GET'])
+    @bp_queues_status.route(f'{FLASK_PREFIX}/backend/queues/status', methods=['GET'])
     def queues_status():
+        """
+        Retrieves the alert status for queues.
+        ---
+        tags:
+          - Queues
+        parameters:
+          - name: tipo
+            in: query
+            type: string
+            required: true
+            description: The type of queue to retrieve status for. Can be 'producao' or 'antiga'.
+            enum: ['producao', 'antiga']
+        responses:
+          200:
+            description: Queue alert status retrieved successfully.
+          400:
+            description: Invalid 'tipo' parameter.
+        """
         tipo = request.args.get("tipo")
         if tipo == "producao":
             aws_account = "prd"

@@ -15,6 +15,8 @@ from backend.alert import bp_get_a_schedule
 from backend.alert import bp_upd_a_schedule
 from backend.alert import bp_test_alert
 from backend.alert import bp_send_alert
+from backend.api import create_api_blueprint
+from backend.docs import setup_swagger
 from functions.scheduler import run_scheduler_in_background
 from functions.log import setup_logger, log_message
 from flask import Flask, redirect
@@ -49,6 +51,7 @@ def start_flask():
     app.register_blueprint(bp_upd_a_schedule)
     app.register_blueprint(bp_test_alert)
     app.register_blueprint(bp_send_alert)
+    app.register_blueprint(create_api_blueprint(app))
     if FLASK_PREFIX != '/homol':
         from pages.tabelas import bp_tabelas
         from backend.queryes import bp_queryes
@@ -62,6 +65,9 @@ def start_flask():
         app.register_blueprint(bp_filas)
         app.register_blueprint(bp_queues)
         app.register_blueprint(bp_queues_status)
+    
+    setup_swagger(app)
+
     @app.route('/')
     def index():
         return redirect(f'{FLASK_PREFIX}/home')

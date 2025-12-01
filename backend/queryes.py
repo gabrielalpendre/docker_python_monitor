@@ -12,8 +12,21 @@ if FLASK_PREFIX != '/homol':
     bp_queryes = Blueprint('queryes', __name__)
     bp_queryes_status = Blueprint('queryes_status', __name__)
 
-    @bp_queryes.route(f'{FLASK_PREFIX}/queryes', methods=['GET'])
+    @bp_queryes.route(f'{FLASK_PREFIX}/backend/queryes', methods=['GET'])
     def queryes():
+        """
+        Retrieves the status and counts of various queries.
+        ---
+        tags:
+          - Queryes
+        responses:
+          200:
+            description: Query data retrieved successfully.
+            schema:
+              type: object
+          500:
+            description: No report data available.
+        """
         timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         query_results = get_query_counts()
         if not query_results:
@@ -40,7 +53,18 @@ if FLASK_PREFIX != '/homol':
 
         return jsonify(response_data)
 
-    @bp_queryes_status.route(f'{FLASK_PREFIX}/queryes/status', methods=['GET'])
+    @bp_queryes_status.route(f'{FLASK_PREFIX}/backend/queryes/status', methods=['GET'])
     def queryes_status():
+        """
+        Retrieves the alert status for queries.
+        ---
+        tags:
+          - Queryes
+        responses:
+          200:
+            description: Query alert status retrieved successfully.
+            schema:
+              type: object
+        """
         query_status = load_alerts_state("queryes")
         return jsonify (query_status)
