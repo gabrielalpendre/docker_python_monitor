@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <title>Administração de Serviços</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet" />
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='images/favicon.ico') }}">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/toastify-js/src/toastify.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/toastify-js"></script>
+    <style>
+        .navbar { transition: background-color 0.3s, color 0.3s; }
+        .container-section {
+            background-color: var(--section-bg);
+            padding: 20px;
+            border-radius: 8px;
+            transition: background-color 0.3s, color 0.3s;
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <nav class="navbar navbar-light shadow-sm px-4 justify-content-between align-items-center" style="height:60px;">
+        <div class="d-flex align-items-center">
+            <img src="{{ url_for('static', filename='images/logo.png') }}" alt="Logo" height="25" class="me-3" />
+        </div>
+        <div class="d-flex gap-2 align-items-center">
+            <div class="text-end fw-bold">{{ VERSAO }}</div>
+            <a href="{{ url_for('logs.logs') }}" class="btn btn-secondary btn-sm">Service Logs</a>
+            <a href="{{ url_for('incidentes.incidentes') }}" class="btn btn-secondary btn-sm">Incidentes</a>
+            <a href="{{ url_for('reports.reports') }}" class="btn btn-secondary btn-sm">Relatórios</a>
+            {% if FLASK_PREFIX != '/homol' %}
+                <a href="{{ url_for('filas.filas') }}" class="btn btn-secondary btn-sm">Filas AWS</a>
+                <a href="{{ url_for('tabelas.tabelas') }}" class="btn btn-secondary btn-sm">Banco de Dados</a>
+            {% endif %}
+            <a href="{{ url_for('home.home') }}" class="btn btn-secondary btn-sm">Home</a>
+            <button id="toggleTheme" class="btn btn-secondary ms-3" title="Alternar tema">
+                <i id="themeIcon" class="bi"></i>
+            </button>
+        </div>
+    </nav>
+
+    <div class="container mt-4 container-section">
+        <h2>Administração de serviços</h2>
+        <div class="row">
+            <div class="col-md-6">
+                <p><strong>Tempo médio da execução do relatório:</strong> {{ tempo_medio }}</p>
+
+                <form id="intervalForm" class="mb-4">
+                    <input type="hidden" name="form_type" value="intervalForm">
+                    <div class="mb-2 d-flex align-items-center gap-2">
+                        <label for="current_interval" class="form-label mb-0">Intervalo (segundos):</label>
+                        <input type="number" class="form-control form-control-sm" id="current_interval" name="current_interval" min="1" value="{{ current_interval }}">
+                        <button type="submit" class="btn btn-primary btn-sm">Alterar</button>
+                    </div>
+                </form>
+
+                <form id="excludedForm">
+                    <input type="hidden" name="form_type" value="excludedForm">
+                    <p class="mb-2"><strong>Serviços excluídos do monitoramento:</strong></p>
+                    {% for service in services %}
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" name="excluded_services" value="{{ service[0] }}" {% if service[0] in excluded_services %}checked{% endif %}>
+                            <label class="form-check-label">{{ service[0] }}</label>
+                        </div>
+                    {% endfor %}
+                    <button type="submit" class="btn btn-primary btn-sm mt-2">Salvar</button>
+                </form>
+            </div>
+            <div class="col-md-6">
+                <h5>Ferramentas de Alerta</h5>
+                <div class="mb-3 d-flex gap-2 align-items-center">
+                    <select id="service-selector" class="form-select form-select-sm" style="width:auto;">
+                        <option value="telegram">Telegram</option>
+                        <option value="teams">Teams</option>
+                    </select>
+                    <input type="time" id="global-time" class="form-control form-control-sm">
+                    <select id="global-action" class="form-select form-select-sm" style="width:auto;">
+                        <option value="on">Ativar</option>
+                        <option value="off">Desativar</option>
+                    </select>
+                    <button onclick="addSchedule()" class="btn btn-primary btn-sm">Adicionar</button>
+                </div>
+                <div id="schedule-container"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const URLS = {
+            setInterval: "{{ url_for('set_interval.set_interval') }}",
+            admin: "{{ url_for('admin.admin') }}",
+            getSchedule: "{{ url_for('get_alert_schedule.get_alert_schedule') }}",
+            updateSchedule: "{{ url_for('update_alert_schedule.update_alert_schedule') }}",
+            alertConfig: "{{ url_for('alert_config.alert_config') }}",
+            alertToggle: "{{ url_for('alert_toggle.alert_toggle') }}"
+        };
+    </script>
+    <script src="{{ url_for('static', filename='js/theme.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/admin.js') }}"></script>
+</body>
+</html>
