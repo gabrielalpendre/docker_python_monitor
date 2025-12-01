@@ -10,7 +10,7 @@ Os alertas sao enviados para as ferramentas Telegram, Teams e Email com base em 
 ## Pre-requisitos
 
 * Python 3.x
-* Docker instalado e em execucao
+* Docker instalado e em execucao com swarm ativado
 
 ## Ambiente
 
@@ -118,3 +118,4 @@ Contribuicões sao bem-vindas! Sinta-se à vontade para abrir issues e pull requ
 Gabriel Alpendre 2025 --please copyright--
 
 http://www.linkedin.com/in/gabriel-alpendre/
+
