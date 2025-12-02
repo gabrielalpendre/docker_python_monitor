@@ -1,46 +1,13 @@
-<!DOCTYPE html>
-<html lang="pt-br">
-<head>
-    <meta charset="UTF-8">
-    <title>Administração de Serviços</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet" />
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
-    <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='images/favicon.ico') }}">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+{% extends "base.html" %}
+
+{% block title %}Administração de Serviços{% endblock %}
+
+{% block extra_head %}
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/toastify-js/src/toastify.min.css">
     <script src="https://cdn.jsdelivr.net/npm/toastify-js"></script>
-    <style>
-        .navbar { transition: background-color 0.3s, color 0.3s; }
-        .container-section {
-            background-color: var(--section-bg);
-            padding: 20px;
-            border-radius: 8px;
-            transition: background-color 0.3s, color 0.3s;
-        }
-    </style>
-</head>
-<body>
-    <!-- Header -->
-    <nav class="navbar navbar-light shadow-sm px-4 justify-content-between align-items-center" style="height:60px;">
-        <div class="d-flex align-items-center">
-            <img src="{{ url_for('static', filename='images/logo.png') }}" alt="Logo" height="25" class="me-3" />
-        </div>
-        <div class="d-flex gap-2 align-items-center">
-            <div class="text-end fw-bold">{{ VERSAO }}</div>
-            <a href="{{ url_for('logs.logs') }}" class="btn btn-secondary btn-sm">Service Logs</a>
-            <a href="{{ url_for('incidentes.incidentes') }}" class="btn btn-secondary btn-sm">Incidentes</a>
-            <a href="{{ url_for('reports.reports') }}" class="btn btn-secondary btn-sm">Relatórios</a>
-            {% if FLASK_PREFIX != '/homol' %}
-                <a href="{{ url_for('filas.filas') }}" class="btn btn-secondary btn-sm">Filas AWS</a>
-                <a href="{{ url_for('tabelas.tabelas') }}" class="btn btn-secondary btn-sm">Banco de Dados</a>
-            {% endif %}
-            <a href="{{ url_for('home.home') }}" class="btn btn-secondary btn-sm">Home</a>
-            <button id="toggleTheme" class="btn btn-secondary ms-3" title="Alternar tema">
-                <i id="themeIcon" class="bi"></i>
-            </button>
-        </div>
-    </nav>
+{% endblock %}
 
+{% block content %}
     <div class="container mt-4 container-section">
         <h2>Administração de serviços</h2>
         <div class="row">
@@ -86,7 +53,9 @@
             </div>
         </div>
     </div>
+{% endblock %}
 
+{% block scripts %}
     <script>
         const URLS = {
             setInterval: "{{ url_for('set_interval.set_interval') }}",
@@ -97,7 +66,5 @@
             alertToggle: "{{ url_for('alert_toggle.alert_toggle') }}"
         };
     </script>
-    <script src="{{ url_for('static', filename='js/theme.js') }}"></script>
     <script src="{{ url_for('static', filename='js/admin.js') }}"></script>
-</body>
-</html>
+{% endblock %}

@@ -56,16 +56,18 @@ populateDates('services');
 reportType.addEventListener('change', ()=>populateDates(reportType.value, true));
 reportDate.addEventListener('change', ()=>populateStacks(reportType.value));
 
+window.addEventListener('theme:change', () => updateAllChartsTheme());
+
 function updateAllChartsTheme() {
     const charts = Chart.instances;
     Object.values(charts).forEach(chart => refreshChartColors(chart));
 }
 
 function refreshChartColors(chart) {
-    const isDark = body.classList.contains('dark-mode');
-    const axisColor = isDark ? '#eee' : '#333';
-    const gridColor = isDark ? 'rgba(0,0,0,0.05)' : 'rgba(255,255,255,0.05)';
-    const chartBg = isDark ? 'rgba(40,40,40,0.8)' : 'rgba(255,255,255,0.95)'; // Corrigido
+    const isDarkMode = document.documentElement.classList.contains('dark-mode');
+    const chartBg = isDarkMode ? 'rgba(43, 43, 43, 0.8)' : 'rgba(240, 240, 240, 0.95)';
+    const axisColor = isDarkMode ? '#e0e0e0' : '#333';
+    const gridColor = isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.05)';
     chart.options.scales.x.ticks.color = axisColor;
     chart.options.scales.x.grid.color = gridColor;
     chart.options.scales.y.ticks.color = axisColor;
@@ -123,21 +125,39 @@ function generateReport() {
     const start = startHour.value;
     const end = endHour.value;
 
-    if(!date) return alert('Selecione uma data existente.');
-    if(!start||!end) return alert('Informe o intervalo de horas.');
-
-    const [startH,startM]=start.split(':').map(Number);
-    const [endH,endM]=end.split(':').map(Number);
-    if(endH*60+endM<=startH*60+startM) return alert('A hora final deve ser maior que a inicial.');
-
     const file = `${date}_${type}_report.json`;
+    const loadingIndicator = document.getElementById('loadingIndicator');
+    const noDataIndicator = document.getElementById('noDataIndicator');
+    const chartContainer = document.getElementById('chartContainer');
+
+    // Validações
+    if (!date) {
+        noDataIndicator.textContent = 'Selecione uma data existente.';
+        noDataIndicator.style.display = 'block';
+        return;
+    }
+    if (!start || !end) {
+        noDataIndicator.textContent = 'Informe o intervalo de horas.';
+        noDataIndicator.style.display = 'block';
+        return;
+    }
+    const [startH, startM] = start.split(':').map(Number);
+    const [endH, endM] = end.split(':').map(Number);
+    if (endH * 60 + endM <= startH * 60 + startM) {
+        noDataIndicator.textContent = 'A hora final deve ser maior que a inicial.';
+        noDataIndicator.style.display = 'block';
+        return;
+    }
+
+    // Limpa avisos e gráficos antigos e mostra o loading
+    noDataIndicator.style.display = 'none';
+    chartContainer.style.display = 'none';
+    chartContainer.innerHTML = '';
+    loadingIndicator.style.display = 'block';
+
     fetch(`${PAGE_DATA.data_url}?file=${file}`)
         .then(r=>r.json())
         .then(rawData=>{
-            if(rawData.error) return alert(rawData.error);
-
-            const chartContainer = document.getElementById('chartContainer');
-            chartContainer.innerHTML=''; 
             chartContainer.style.display='flex';
             chartContainer.style.flexDirection='column';
             chartContainer.style.gap='20px';
@@ -147,8 +167,6 @@ function generateReport() {
                 const total = h*60+m;
                 return total >= startH*60+startM && total <= endH*60+endM;
             });
-
-            if(filteredData.length===0) return alert('Nenhum dado encontrado no intervalo selecionado.');
 
             const timestamps = [];
             const dataMap = {};
@@ -285,6 +303,9 @@ function generateReport() {
                     renderChart(memCanvas.id, 'Uso de Memória (MiB)', timestamps, memFilled);
                 });
             }
+        })
+        .finally(() => {
+            loadingIndicator.style.display = 'none'; // Esconde o loading ao final de tudo
         });
 }
 
@@ -408,10 +429,10 @@ function addSLOIndicator(dayData, type, stack=null){
 // renderChart com cor do último ponto na legenda/rodapé
 function renderChart(canvasId, label, labels, datasetsObj, isServer=false){
     const ctx = document.getElementById(canvasId).getContext('2d');
-    const isDark = body.classList.contains('dark-mode');
-    const chartBg = isDark ? 'rgba(40,40,40,0.8)' : 'rgba(255,255,255,0.95)';
-    const axisColor = isDark ? '#eee' : '#333';
-    const gridColor = isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)';
+    const isDarkMode = document.documentElement.classList.contains('dark-mode');
+    const chartBg = isDarkMode ? 'rgba(43, 43, 43, 0.8)' : 'rgba(240, 240, 240, 0.95)';
+    const axisColor = isDarkMode ? '#e0e0e0' : '#333';
+    const gridColor = isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.05)';
 
     const datasets = Object.keys(datasetsObj).map(k => {
         const values = datasetsObj[k];

@@ -1,4 +1,5 @@
 from flask import Blueprint, render_template
+from functions.reports import count_todays_incidents
 from dotenv import load_dotenv
 import os
 
@@ -10,4 +11,7 @@ if FLASK_PREFIX != '/homol':
 
     @bp_filas.route(f'{FLASK_PREFIX}/filas')
     def filas():
-        return render_template("filas.html", FLASK_PREFIX=FLASK_PREFIX)
+        todays_incidents_count = count_todays_incidents()
+        return render_template("filas.html", FLASK_PREFIX=FLASK_PREFIX,
+                                             todays_incidents_count=todays_incidents_count,
+                                             VERSAO=os.getenv('VERSION', 'development'))

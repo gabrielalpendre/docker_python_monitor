@@ -1,7 +1,7 @@
 import os
 import sys
 import json
-import pytz
+#import pytz
 import time
 from datetime import datetime
 from functions.services import get_server_info, get_services, get_docker_stats, test_tcp_connection, get_server_load
@@ -129,7 +129,7 @@ def save_report_to_file(type, stats):
         else:
             data = []
         if stats:
-            timestamp = datetime.now(pytz.timezone('America/Sao_Paulo')).strftime("%Y-%m-%d %H:%M:%S")
+            timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             new_report = {"timestamp": timestamp, "data": stats}
             data.append(new_report)
 
@@ -186,3 +186,18 @@ def load_incidents(filter_service=None, filter_type=None):
             type_map[type_val].add(service_val)
     type_map = {k: list(v) for k, v in type_map.items()}
     return data, services, types, type_map
+
+def count_todays_incidents():
+    """
+    Conta o número de incidentes que ocorreram na data de hoje a partir do arquivo JSON.
+    """
+    filename = os.path.join(INCIDENTS_DIR, f"{datetime.now().strftime('%Y-%m-%d')}_incidentes.json")
+    try:
+        if os.path.exists(filename):
+            with open(filename, 'r') as file:
+                data = json.load(file)
+                return len(data)
+    except (FileNotFoundError, json.JSONDecodeError):
+        # Se o arquivo não existe ou está mal formatado, não há incidentes a contar.
+        pass
+    return 0

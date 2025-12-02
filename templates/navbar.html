@@ -1,0 +1,38 @@
+<nav class="navbar">
+    <div class="navbar-left">
+        <div class="d-flex align-items-center">
+            <a href="{{ url_for('home.home') }}" style="line-height: 1;">
+                <img src="{{ url_for('static', filename='images/logo.png') }}" alt="Logo" height="25" class="me-3" id="logo-img-light"/>
+                <img src="{{ url_for('static', filename='images/logo.png') }}" alt="Logo" height="25" class="me-3" id="logo-img-dark"/>
+            </a>
+        </div>
+    </div>
+    <div class="navbar-right">
+        <div class="notification-icon-container">
+            <div class="text-end fw-bold me-3 version-text">{{ VERSAO }}</div>
+        </div>
+        <div class="notification-icon-container">
+            <a href="{{ FLASK_PREFIX }}/incidentes" class="notification-icon">
+                <i class="fas fa-bell"></i>
+                {% if todays_incidents_count > 0 %}
+                <span class="notification-badge">{{ todays_incidents_count }}</span>
+                {% endif %}
+            </a>
+        </div>
+        <div class="dropdown-container">
+            <i class="fas fa-bars menu-icon"></i>
+            <div class="dropdown-menu">
+                <a href="{{ url_for('home.home') }}" class="dropdown-item">Home</a>
+                {% if FLASK_PREFIX != '/homol' %}
+                    <a href="{{ url_for('tabelas.tabelas') }}" class="dropdown-item">Banco de Dados</a>
+                    <a href="{{ url_for('filas.filas') }}" class="dropdown-item">Filas AWS</a>
+                {% endif %}
+                <a href="{{ url_for('incidentes.incidentes') }}" class="dropdown-item">Incidentes</a>
+                <a href="{{ url_for('reports.reports') }}" class="dropdown-item">Relatórios</a>
+            </div>
+        </div>
+        <button id="toggleTheme" class="btn btn-secondary theme-toggle-button" title="Alternar tema">
+            <i id="themeIcon" class="bi"></i>
+        </button>
+    </div>
+</nav>
